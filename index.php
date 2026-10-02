@@ -45,8 +45,6 @@ require_once AI_EXPORTER_ROOT.'/repositories/PageRepository.php';
 require_once AI_EXPORTER_ROOT.'/repositories/MediaMapper.php';
 require_once AI_EXPORTER_ROOT.'/repositories/MediaRepository.php';
 
-require_once AI_EXPORTER_ROOT.'/repositories/KnowledgeGraphBuilder.php';
-
 /*
 |--------------------------------------------------------------------------
 | Builders
@@ -55,8 +53,15 @@ require_once AI_EXPORTER_ROOT.'/repositories/KnowledgeGraphBuilder.php';
 
 require_once AI_EXPORTER_ROOT.'/builders/SemanticEnricher.php';
 require_once AI_EXPORTER_ROOT.'/builders/RelationshipBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/NavigationBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/InternalLinkGraphBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/InternalLinkGraphExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/WooCommerceRelationshipBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/KnowledgeGraphBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/SeoAuditBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/SeoAuditExporter.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -114,9 +119,28 @@ try {
 
     $json->write('knowledge.json', $knowledge);
 
-    (new SiteBrainExporter($config))->export($knowledge);
+    $brain = (new SiteBrainExporter($config))->export($knowledge);
+    $linkSummary = $brain['link_analysis']['summary'] ?? [];
 
     echo "✔ Site Brain : generated\n";
+    echo "✔ Internal Link Graph : "
+        . ($linkSummary['node_count'] ?? 0)
+        . " nodes, "
+        . ($linkSummary['orphan_count'] ?? 0)
+        . " orphans\n";
+
+    $audit = (new SeoAuditExporter($config))->export($knowledge, $brain);
+    $auditSummary = $audit['summary'] ?? [];
+
+    echo "✔ SEO Audit : "
+        . ($auditSummary['total'] ?? 0)
+        . " findings ("
+        . ($auditSummary['critical'] ?? 0)
+        . " critical / "
+        . ($auditSummary['warning'] ?? 0)
+        . " warning / "
+        . ($auditSummary['opportunity'] ?? 0)
+        . " opportunity)\n";
 
     $json->write('manifest.json', [
 
@@ -134,7 +158,18 @@ try {
 
         'pages' => count($knowledge['pages']),
 
-        'media' => count($knowledge['media'])
+        'media' => count($knowledge['media']),
+
+        'link_analysis' => $linkSummary,
+
+        'seo_audit' => $auditSummary,
+
+        'files' => [
+            'knowledge' => 'json/knowledge.json',
+            'site_brain' => 'json/site_brain.json',
+            'internal_link_graph' => 'json/internal_link_graph.json',
+            'seo_audit' => 'json/seo_audit.json',
+        ],
 
     ]);
 

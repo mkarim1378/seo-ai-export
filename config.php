@@ -54,6 +54,12 @@ return [
 
         'menus' => true,
 
+        'internal_link_graph' => true,
+
+        'site_brain' => true,
+
+        'seo_audit' => true,
+
     ],
 
     /*

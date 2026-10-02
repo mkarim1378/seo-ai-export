@@ -24,10 +24,10 @@ Outputs land in `output/` (gitignored):
 
 ## Roadmap
 
-1. ~~Content structure extraction (headings, internal links with anchors)~~ — branch `feat/content-structure-extraction`
-2. ~~Full SEO meta (Yoast + Rank Math)~~ — branch `feat/seo-meta-extraction`
-3. Enriched internal link graph + orphan detection
-4. `seo_audit.json` for AI agents
+1. ~~Content structure extraction (headings, internal links with anchors)~~
+2. ~~Full SEO meta (Yoast + Rank Math)~~
+3. ~~Enriched internal link graph + orphan detection~~
+4. ~~`seo_audit.json` for AI agents~~
 
 ### Phase 1 entity shape
 
@@ -53,3 +53,20 @@ Products also include:
 - `variations` summary for variable products
 - full approved `reviews` text
 - category `breadcrumb` path
+
+### Phase 3 link graph
+
+`output/json/internal_link_graph.json` plus `site_brain.link_analysis`:
+
+- nodes with `outgoing_links` (target_id / url / anchor), incoming, orphan, weak-hub flags
+- dead internal links, duplicate anchors, links-by-category distribution
+- navigation comes from a single `NavigationBuilder` source
+
+### Phase 4 SEO audit
+
+`output/json/seo_audit.json` with severity summary, actionable findings, and indexes:
+
+- missing/duplicate titles & meta descriptions, keyword cannibalization
+- heading issues, thin categories, stale posts, product image/alt/brand/GTIN/reviews
+- orphans, weak hubs, dead internal links, unexpected noindex
+- each finding includes `ai_action` for agent workflows

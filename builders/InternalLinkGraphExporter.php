@@ -4,20 +4,19 @@ declare(strict_types=1);
 
 class InternalLinkGraphExporter
 {
-    public function export(array $graph): string
+    private JsonWriter $json;
+
+    public function __construct(array $config)
     {
-        $file = AI_OUTPUT_DIR . '/internal_link_graph.json';
-
-        file_put_contents(
-            $file,
-            json_encode(
-                $graph,
-                JSON_PRETTY_PRINT |
-                JSON_UNESCAPED_UNICODE |
-                JSON_UNESCAPED_SLASHES
-            )
+        $this->json = new JsonWriter(
+            rtrim($config['output'], '/') . '/json'
         );
+    }
 
-        return $file;
+    public function export(array $graph): array
+    {
+        $this->json->write('internal_link_graph.json', $graph);
+
+        return $graph;
     }
 }
