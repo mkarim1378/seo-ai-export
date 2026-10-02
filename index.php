@@ -65,7 +65,7 @@ require_once AI_EXPORTER_ROOT.'/builders/SeoAuditExporter.php';
 
 /*
 |--------------------------------------------------------------------------
-| Exporters
+| Exporters / Views
 |--------------------------------------------------------------------------
 */
 
@@ -74,47 +74,42 @@ require_once AI_EXPORTER_ROOT.'/exporters/CategoriesExporter.php';
 require_once AI_EXPORTER_ROOT.'/exporters/PostsExporter.php';
 require_once AI_EXPORTER_ROOT.'/exporters/PagesExporter.php';
 require_once AI_EXPORTER_ROOT.'/exporters/MediaExporter.php';
+require_once AI_EXPORTER_ROOT.'/views/ExportReport.php';
 
 ignore_user_abort(true);
 set_time_limit(0);
-ini_set('memory_limit','2048M');
-
-header('Content-Type:text/html;charset=utf-8');
-
-echo "<pre>";
-
-echo "========================================\n";
-echo " AI SITE INTELLIGENCE ENGINE\n";
-echo "========================================\n\n";
+ini_set('memory_limit', '2048M');
 
 $start = microtime(true);
-
 $knowledge = [];
+$report = [
+    'site_name' => get_bloginfo('name'),
+    'site_url' => home_url('/'),
+    'generated_at' => date('Y-m-d H:i:s'),
+    'counts' => [],
+    'audit' => [],
+    'link_analysis' => [],
+    'files' => [],
+];
 
 try {
-
     $products = (new ProductsExporter($config))->export();
-    echo "✔ Products : {$products['count']}\n";
     $knowledge['products'] = $products['data'];
 
     $categories = (new CategoriesExporter($config))->export();
-    echo "✔ Categories : {$categories['count']}\n";
     $knowledge['categories'] = $categories['data'];
 
     $posts = (new PostsExporter($config))->export();
-    echo "✔ Posts : {$posts['count']}\n";
     $knowledge['posts'] = $posts['data'];
 
     $pages = (new PagesExporter($config))->export();
-    echo "✔ Pages : {$pages['count']}\n";
     $knowledge['pages'] = $pages['data'];
 
     $media = (new MediaExporter($config))->export();
-    echo "✔ Media : {$media['count']}\n";
     $knowledge['media'] = $media['data'];
 
     $json = new JsonWriter(
-        rtrim($config['output'],'/').'/json'
+        rtrim($config['output'], '/') . '/json'
     );
 
     $json->write('knowledge.json', $knowledge);
@@ -122,80 +117,75 @@ try {
     $brain = (new SiteBrainExporter($config))->export($knowledge);
     $linkSummary = $brain['link_analysis']['summary'] ?? [];
 
-    echo "✔ Site Brain : generated\n";
-    echo "✔ Internal Link Graph : "
-        . ($linkSummary['node_count'] ?? 0)
-        . " nodes, "
-        . ($linkSummary['orphan_count'] ?? 0)
-        . " orphans\n";
-
     $audit = (new SeoAuditExporter($config))->export($knowledge, $brain);
     $auditSummary = $audit['summary'] ?? [];
 
-    echo "✔ SEO Audit : "
-        . ($auditSummary['total'] ?? 0)
-        . " findings ("
-        . ($auditSummary['critical'] ?? 0)
-        . " critical / "
-        . ($auditSummary['warning'] ?? 0)
-        . " warning / "
-        . ($auditSummary['opportunity'] ?? 0)
-        . " opportunity)\n";
+    $files = [
+        'knowledge' => 'json/knowledge.json',
+        'site_brain' => 'json/site_brain.json',
+        'internal_link_graph' => 'json/internal_link_graph.json',
+        'seo_audit' => 'json/seo_audit.json',
+        'manifest' => 'json/manifest.json',
+    ];
 
     $json->write('manifest.json', [
-
         'generated_at' => date('Y-m-d H:i:s'),
-
         'site_name' => get_bloginfo('name'),
-
         'site_url' => home_url(),
-
         'products' => count($knowledge['products']),
-
         'categories' => count($knowledge['categories']),
-
         'posts' => count($knowledge['posts']),
-
         'pages' => count($knowledge['pages']),
-
         'media' => count($knowledge['media']),
-
         'link_analysis' => $linkSummary,
-
         'seo_audit' => $auditSummary,
-
-        'files' => [
-            'knowledge' => 'json/knowledge.json',
-            'site_brain' => 'json/site_brain.json',
-            'internal_link_graph' => 'json/internal_link_graph.json',
-            'seo_audit' => 'json/seo_audit.json',
-        ],
-
+        'files' => $files,
     ]);
 
+    $report['counts'] = [
+        'products' => count($knowledge['products']),
+        'categories' => count($knowledge['categories']),
+        'posts' => count($knowledge['posts']),
+        'pages' => count($knowledge['pages']),
+        'media' => count($knowledge['media']),
+    ];
+    $report['audit'] = $auditSummary;
+    $report['link_analysis'] = $linkSummary;
+    $report['files'] = [
+        [
+            'name' => 'seo_audit.json',
+            'href' => 'output/json/seo_audit.json',
+            'description' => 'Actionable SEO findings for AI agents',
+        ],
+        [
+            'name' => 'site_brain.json',
+            'href' => 'output/json/site_brain.json',
+            'description' => 'Full site intelligence package',
+        ],
+        [
+            'name' => 'internal_link_graph.json',
+            'href' => 'output/json/internal_link_graph.json',
+            'description' => 'Orphans, hubs, and link structure',
+        ],
+        [
+            'name' => 'knowledge.json',
+            'href' => 'output/json/knowledge.json',
+            'description' => 'Raw exported entities',
+        ],
+        [
+            'name' => 'manifest.json',
+            'href' => 'output/json/manifest.json',
+            'description' => 'Run summary and file index',
+        ],
+    ];
+} catch (Throwable $e) {
+    $report['error'] = [
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+    ];
 }
-catch(Throwable $e){
 
-    echo "\nERROR\n\n";
+$report['duration'] = round(microtime(true) - $start, 2);
 
-    echo $e->getMessage()."\n\n";
-
-    echo $e->getFile()."\n";
-
-    echo "Line ".$e->getLine();
-
-    exit;
-
-}
-
-$time = round(microtime(true)-$start,2);
-
-echo "\n========================================\n";
-
-echo "Completed Successfully\n";
-
-echo "Execution Time : {$time} sec\n";
-
-echo "========================================\n";
-
-echo "</pre>";
+(new ExportReport())->render($report);

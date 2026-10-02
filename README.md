@@ -18,9 +18,11 @@ php index.php
 
 Outputs land in `output/` (gitignored):
 
-- `output/json/` — structured datasets + `site_brain.json`
+- `output/json/` — structured datasets + `site_brain.json` + `seo_audit.json`
 - `output/csv/` — flattened tables
 - `output/markdown/` — per-entity markdown files
+
+Browser runs show a minimal HTML export report when finished (CLI stays plain text).
 
 ## Roadmap
 
