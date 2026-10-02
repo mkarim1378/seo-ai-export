@@ -7,19 +7,12 @@ class RelationshipBuilder
     public function build(array $knowledge): array
     {
         return [
-
             'product_category' => $this->productCategory($knowledge),
-
             'post_category' => $this->postCategory($knowledge),
-
-            'page_links' => $this->pageLinks($knowledge),
-
-            'post_links' => $this->postLinks($knowledge),
-
-            'product_links' => $this->productLinks($knowledge),
-
-            'media_usage' => $this->mediaUsage($knowledge)
-
+            'page_links' => $this->entityLinks($knowledge['pages'] ?? [], 'page'),
+            'post_links' => $this->entityLinks($knowledge['posts'] ?? [], 'post'),
+            'product_links' => $this->entityLinks($knowledge['products'] ?? [], 'product'),
+            'media_usage' => $this->mediaUsage($knowledge),
         ];
     }
 
@@ -28,21 +21,13 @@ class RelationshipBuilder
         $relations = [];
 
         foreach ($knowledge['products'] ?? [] as $product) {
-
             foreach (($product['taxonomy']['categories'] ?? []) as $category) {
-
                 $relations[] = [
-
                     'product_id' => $product['basic']['id'],
-
                     'product_title' => $product['basic']['title'],
-
-                    'category' => $category
-
+                    'category' => $category,
                 ];
-
             }
-
         }
 
         return $relations;
@@ -53,102 +38,38 @@ class RelationshipBuilder
         $relations = [];
 
         foreach ($knowledge['posts'] ?? [] as $post) {
-
             foreach (($post['taxonomy']['categories'] ?? []) as $category) {
-
                 $relations[] = [
-
                     'post_id' => $post['basic']['id'],
-
                     'post_title' => $post['basic']['title'],
-
-                    'category' => $category
-
+                    'category' => $category,
                 ];
-
             }
-
         }
 
         return $relations;
     }
 
-    private function pageLinks(array $knowledge): array
+    private function entityLinks(array $entities, string $type): array
     {
         $relations = [];
 
-        foreach ($knowledge['pages'] ?? [] as $page) {
-
-            preg_match_all(
-                '/https?:\/\/[^"\']+/i',
-                $page['content']['content'] ?? '',
-                $matches
-            );
+        foreach ($entities as $entity) {
+            $internal = $entity['structure']['internal_links'] ?? [];
+            $external = $entity['structure']['external_links'] ?? [];
 
             $relations[] = [
-
-                'page_id' => $page['basic']['id'],
-
-                'title' => $page['basic']['title'],
-
-                'links' => array_values(array_unique($matches[0]))
-
+                "{$type}_id" => $entity['basic']['id'] ?? null,
+                'title' => $entity['basic']['title'] ?? ($entity['basic']['name'] ?? ''),
+                'internal_links' => $internal,
+                'external_links' => $external,
+                'internal_count' => count($internal),
+                'external_count' => count($external),
+                'links' => array_values(array_unique(array_map(
+                    static fn(array $link): string => (string)($link['url'] ?? ''),
+                    array_merge($internal, $external)
+                ))),
             ];
-
-        }
-
-        return $relations;
-    }
-
-    private function postLinks(array $knowledge): array
-    {
-        $relations = [];
-
-        foreach ($knowledge['posts'] ?? [] as $post) {
-
-            preg_match_all(
-                '/https?:\/\/[^"\']+/i',
-                $post['content']['content'] ?? '',
-                $matches
-            );
-
-            $relations[] = [
-
-                'post_id' => $post['basic']['id'],
-
-                'title' => $post['basic']['title'],
-
-                'links' => array_values(array_unique($matches[0]))
-
-            ];
-
-        }
-
-        return $relations;
-    }
-
-    private function productLinks(array $knowledge): array
-    {
-        $relations = [];
-
-        foreach ($knowledge['products'] ?? [] as $product) {
-
-            preg_match_all(
-                '/https?:\/\/[^"\']+/i',
-                $product['content']['description'] ?? '',
-                $matches
-            );
-
-            $relations[] = [
-
-                'product_id' => $product['basic']['id'],
-
-                'title' => $product['basic']['title'],
-
-                'links' => array_values(array_unique($matches[0]))
-
-            ];
-
         }
 
         return $relations;
@@ -159,19 +80,12 @@ class RelationshipBuilder
         $relations = [];
 
         foreach ($knowledge['media'] ?? [] as $media) {
-
             $relations[] = [
-
                 'media_id' => $media['basic']['id'],
-
                 'file' => $media['basic']['url'],
-
                 'parent_id' => $media['parent']['parent_id'] ?? 0,
-
-                'parent_type' => $media['parent']['parent_type'] ?? ''
-
+                'parent_type' => $media['parent']['parent_type'] ?? '',
             ];
-
         }
 
         return $relations;

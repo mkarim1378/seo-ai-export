@@ -4,50 +4,50 @@ declare(strict_types=1);
 
 class CategoryMapper
 {
+    private ContentStructureExtractor $structureExtractor;
+
+    public function __construct()
+    {
+        $this->structureExtractor = new ContentStructureExtractor();
+    }
+
     public function map(WP_Term $term): array
     {
+        $rawDescription = (string) ($term->description ?? '');
+
         return [
-
             'basic' => $this->basic($term),
-
-            'content' => $this->content($term),
-
+            'content' => $this->content($rawDescription),
+            'structure' => $this->structureExtractor->extract($rawDescription),
             'taxonomy' => $this->taxonomy($term),
-
             'seo' => $this->seo($term),
-
             'media' => $this->media($term),
-
-            'custom_fields' => $this->customFields($term)
-
+            'custom_fields' => $this->customFields($term),
         ];
     }
 
     private function basic(WP_Term $term): array
     {
         return [
-
             'id' => $term->term_id,
-
             'name' => $term->name,
-
             'slug' => $term->slug,
-
             'url' => get_term_link($term),
-
-            'count' => $term->count
-
+            'count' => $term->count,
         ];
     }
 
-    private function content(WP_Term $term): array
+    private function content(string $rawDescription): array
     {
+        $plain = ai_clean_text($rawDescription);
+        $metrics = TextMetrics::analyze($plain);
+
         return [
-
-            'description' => ai_clean_text(
-                term_description($term)
-            )
-
+            'description' => $plain,
+            'html_length' => strlen($rawDescription),
+            'word_count' => $metrics['word_count'],
+            'sentence_count' => $metrics['sentence_count'],
+            'char_count' => $metrics['char_count'],
         ];
     }
 
@@ -56,25 +56,17 @@ class CategoryMapper
         $parentName = '';
 
         if ($term->parent) {
-
             $parent = get_term($term->parent);
 
             if ($parent instanceof WP_Term) {
-
                 $parentName = $parent->name;
-
             }
-
         }
 
         return [
-
             'taxonomy' => $term->taxonomy,
-
             'parent_id' => $term->parent,
-
-            'parent_name' => $parentName
-
+            'parent_name' => $parentName,
         ];
     }
 
@@ -83,25 +75,21 @@ class CategoryMapper
         $id = $term->term_id;
 
         return [
-
             'title' => get_term_meta(
                 $id,
                 'wpseo_title',
                 true
             ),
-
             'description' => get_term_meta(
                 $id,
                 'wpseo_desc',
                 true
             ),
-
             'canonical' => get_term_meta(
                 $id,
                 'wpseo_canonical',
                 true
-            )
-
+            ),
         ];
     }
 
@@ -114,29 +102,23 @@ class CategoryMapper
         );
 
         return [
-
             'thumbnail' => ai_attachment(
                 (int)$thumbnail
-            )
-
+            ),
         ];
     }
 
     private function customFields(WP_Term $term): array
     {
         $meta = get_term_meta($term->term_id);
-
         $result = [];
 
         foreach ($meta as $key => $value) {
-
             $result[$key] = maybe_unserialize(
                 $value[0] ?? ''
             );
-
         }
 
         return $result;
     }
-
 }

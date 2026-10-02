@@ -12,6 +12,8 @@ class ProductsExporter
 
     private JsonWriter $json;
 
+    private MarkdownWriter $markdown;
+
     public function __construct(array $config)
     {
         $this->config = $config;
@@ -26,6 +28,10 @@ class ProductsExporter
 
         $this->json = new JsonWriter(
             $output . '/json'
+        );
+
+        $this->markdown = new MarkdownWriter(
+            $output . '/markdown'
         );
     }
 
@@ -46,14 +52,20 @@ class ProductsExporter
             $products
         );
 
+        foreach ($products as $product) {
+            $id = $product['basic']['id'] ?? uniqid();
+
+            $this->markdown->write(
+                'products',
+                (string)$id,
+                $product
+            );
+        }
+
         return [
-
             'name' => 'products',
-
             'count' => count($products),
-
-            'data' => $products
-
+            'data' => $products,
         ];
     }
 
@@ -63,11 +75,8 @@ class ProductsExporter
     public function exportCsv(): void
     {
         $this->csv->write(
-
             'products.csv',
-
             $this->repository->all()
-
         );
     }
 
@@ -77,12 +86,27 @@ class ProductsExporter
     public function exportJson(): void
     {
         $this->json->write(
-
             'products.json',
-
             $this->repository->all()
-
         );
+    }
+
+    /**
+     * فقط Markdown
+     */
+    public function exportMarkdown(): void
+    {
+        $products = $this->repository->all();
+
+        foreach ($products as $product) {
+            $id = $product['basic']['id'] ?? uniqid();
+
+            $this->markdown->write(
+                'products',
+                (string)$id,
+                $product
+            );
+        }
     }
 
     /**

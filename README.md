@@ -24,7 +24,17 @@ Outputs land in `output/` (gitignored):
 
 ## Roadmap
 
-1. Content structure extraction (headings, internal links with anchors)
+1. ~~Content structure extraction (headings, internal links with anchors)~~ — branch `feat/content-structure-extraction`
 2. Full SEO meta (Yoast + Rank Math)
 3. Enriched internal link graph + orphan detection
 4. `seo_audit.json` for AI agents
+
+### Phase 1 entity shape
+
+Each post/page/product/category now includes:
+
+- `content.html_length`, Persian-aware `word_count` / `sentence_count` / `char_count`
+- `structure.headings`, `internal_links` (url + anchor + target_post_id), `external_links`
+- `structure.faq_candidates`, `lists_count`, `tables_count`, paragraph metrics
+
+Products are also written to `output/markdown/products/{id}.md`.
