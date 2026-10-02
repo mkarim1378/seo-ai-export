@@ -1,5 +1,5 @@
 # Builds deployable zip for WordPress host upload and prepares release metadata.
-# Usage: pwsh -File scripts/package-release.ps1
+# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
