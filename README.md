@@ -148,11 +148,11 @@ output/
 3. متن دستورالعمل را از یکی از این فایل‌ها کپی کن:
    - فارسی: [`prompt-fa.md`](prompt-fa.md)
    - English: [`prompt-en.md`](prompt-en.md)
-4. به‌عنوان Knowledge / Files به Gem بده:
+4. به‌عنوان Knowledge / Files به Gem بده (همه اجباری نیست؛ پرامپت به مدل می‌گوید کدام فایل ممکن است باشد و برای هر سؤال اول کجا را باز کند):
    - حداقل: `output/json/knowledge.json`
    - بهتر: `knowledge.json` + `seo_audit.json` + `manifest.json`
    - کامل‌تر: همان‌ها + `site_brain.json` و در صورت نیاز `internal_link_graph.json`
-5. بعد هر سؤالی درباره سئو، محتوا، لینک داخلی، اولویت Sprint و … بپرس.
+5. بعد سؤال بپرس. لازم نیست مدل همه فایل‌ها را هر بار اسکن کند — داخل `prompt-fa.md` / `prompt-en.md` جدول **ROUTING** هست (مثلاً Sprint → `seo_audit`، یک محصول → `knowledge`، orphan → گراف لینک).
 
 ### اگر حجم فایل برای آپلود زیاد است
 
