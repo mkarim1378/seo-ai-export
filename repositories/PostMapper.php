@@ -5,10 +5,12 @@ declare(strict_types=1);
 class PostMapper
 {
     private ContentStructureExtractor $structureExtractor;
+    private SeoMetaExtractor $seoMetaExtractor;
 
     public function __construct()
     {
         $this->structureExtractor = new ContentStructureExtractor();
+        $this->seoMetaExtractor = new SeoMetaExtractor();
     }
 
     public function map(WP_Post $post): array
@@ -22,7 +24,7 @@ class PostMapper
             'taxonomy' => $this->taxonomy($post),
             'author' => $this->author($post),
             'media' => $this->media($post),
-            'seo' => $this->seo($post),
+            'seo' => $this->seoMetaExtractor->forPost($post->ID, 'category'),
             'custom_fields' => $this->customFields($post),
         ];
     }
@@ -90,32 +92,6 @@ class PostMapper
         ];
     }
 
-    private function seo(WP_Post $post): array
-    {
-        return [
-            'title' => get_post_meta(
-                $post->ID,
-                '_yoast_wpseo_title',
-                true
-            ),
-            'description' => get_post_meta(
-                $post->ID,
-                '_yoast_wpseo_metadesc',
-                true
-            ),
-            'canonical' => get_post_meta(
-                $post->ID,
-                '_yoast_wpseo_canonical',
-                true
-            ),
-            'focus_keyword' => get_post_meta(
-                $post->ID,
-                '_yoast_wpseo_focuskw',
-                true
-            ),
-        ];
-    }
-
     private function customFields(WP_Post $post): array
     {
         $meta = get_post_meta($post->ID);
@@ -123,7 +99,7 @@ class PostMapper
 
         foreach ($meta as $key => $values) {
             if (
-                str_starts_with($key, '_yoast_') ||
+                SeoMetaExtractor::shouldSkipPostMetaKey($key) ||
                 $key === '_edit_lock' ||
                 $key === '_edit_last'
             ) {

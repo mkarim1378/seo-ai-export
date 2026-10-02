@@ -5,10 +5,12 @@ declare(strict_types=1);
 class ProductMapper
 {
     private ContentStructureExtractor $structureExtractor;
+    private SeoMetaExtractor $seoMetaExtractor;
 
     public function __construct()
     {
         $this->structureExtractor = new ContentStructureExtractor();
+        $this->seoMetaExtractor = new SeoMetaExtractor();
     }
 
     public function map(WC_Product $product): array
@@ -28,8 +30,15 @@ class ProductMapper
             'shipping' => $this->shipping($product),
             'taxonomy' => $this->taxonomy($product),
             'attributes' => $this->attributes($product),
+            'identifiers' => $this->identifiers($product),
+            'variations' => $this->variations($product),
+            'reviews' => $this->reviews($product),
+            'breadcrumb' => $this->breadcrumb($product),
             'media' => $this->media($product),
-            'seo' => $this->seo($product),
+            'seo' => $this->seoMetaExtractor->forPost(
+                $product->get_id(),
+                'product_cat'
+            ),
             'relations' => $this->relations($product),
             'ratings' => $this->ratings($product),
         ];
@@ -138,11 +147,182 @@ class ProductMapper
                 'name' => wc_attribute_label(
                     $attribute->get_name()
                 ),
+                'slug' => $attribute->get_name(),
                 'values' => $values,
             ];
         }
 
         return $result;
+    }
+
+    private function identifiers(WC_Product $product): array
+    {
+        $id = $product->get_id();
+
+        return [
+            'brand' => $this->firstNonEmpty([
+                $this->attributeValue($product, ['pa_brand', 'brand', 'pa_برند', 'برند']),
+                $this->metaString($id, '_brand'),
+                $this->metaString($id, 'brand'),
+                $this->metaString($id, '_wc_brand'),
+                $this->metaString($id, 'rank_math_snippet_product_brand'),
+            ]),
+            'gtin' => $this->firstNonEmpty([
+                $this->metaString($id, '_global_unique_id'),
+                $this->metaString($id, '_gtin'),
+                $this->metaString($id, 'gtin'),
+                $this->metaString($id, '_wpm_gtin_code'),
+                $this->metaString($id, '_alg_ean'),
+                $this->attributeValue($product, ['pa_gtin', 'gtin', 'pa_ean', 'ean']),
+            ]),
+            'ean' => $this->firstNonEmpty([
+                $this->metaString($id, '_ean'),
+                $this->metaString($id, 'ean'),
+                $this->metaString($id, '_alg_ean'),
+                $this->attributeValue($product, ['pa_ean', 'ean']),
+            ]),
+            'mpn' => $this->firstNonEmpty([
+                $this->metaString($id, '_mpn'),
+                $this->metaString($id, 'mpn'),
+                $this->metaString($id, '_wc_mpn'),
+                $this->attributeValue($product, ['pa_mpn', 'mpn']),
+            ]),
+        ];
+    }
+
+    private function variations(WC_Product $product): array
+    {
+        if (!$product->is_type('variable')) {
+            return [];
+        }
+
+        /** @var WC_Product_Variable $product */
+        $result = [];
+
+        foreach ($product->get_children() as $variationId) {
+            $variation = wc_get_product((int)$variationId);
+
+            if (!$variation instanceof WC_Product_Variation) {
+                continue;
+            }
+
+            $attrs = [];
+            foreach ($variation->get_attributes() as $key => $value) {
+                $attrs[str_replace('attribute_', '', (string)$key)] = $value;
+            }
+
+            $result[] = [
+                'id' => $variation->get_id(),
+                'sku' => $variation->get_sku(),
+                'attributes' => $attrs,
+                'price' => $variation->get_price(),
+                'regular_price' => $variation->get_regular_price(),
+                'sale_price' => $variation->get_sale_price(),
+                'stock_status' => $variation->get_stock_status(),
+                'stock_quantity' => $variation->get_stock_quantity(),
+                'url' => get_permalink($variation->get_id()),
+                'gtin' => $this->firstNonEmpty([
+                    $this->metaString($variation->get_id(), '_global_unique_id'),
+                    $this->metaString($variation->get_id(), '_gtin'),
+                    $this->metaString($variation->get_id(), '_wpm_gtin_code'),
+                ]),
+            ];
+        }
+
+        return $result;
+    }
+
+    private function reviews(WC_Product $product): array
+    {
+        $comments = get_comments([
+            'post_id' => $product->get_id(),
+            'status' => 'approve',
+            'type' => 'review',
+            'orderby' => 'comment_date_gmt',
+            'order' => 'DESC',
+            'number' => 0,
+        ]);
+
+        $result = [];
+
+        foreach ($comments as $comment) {
+            $result[] = [
+                'id' => (int)$comment->comment_ID,
+                'rating' => (int)get_comment_meta($comment->comment_ID, 'rating', true),
+                'author' => $comment->comment_author,
+                'date' => $comment->comment_date,
+                'content' => ai_clean_text($comment->comment_content),
+            ];
+        }
+
+        return $result;
+    }
+
+    private function breadcrumb(WC_Product $product): array
+    {
+        $terms = wp_get_post_terms($product->get_id(), 'product_cat');
+
+        if (is_wp_error($terms) || $terms === []) {
+            return [
+                'path' => [],
+                'trail' => $product->get_name(),
+            ];
+        }
+
+        $deepest = $terms[0];
+        $maxDepth = $this->termDepth($deepest);
+
+        foreach ($terms as $term) {
+            $depth = $this->termDepth($term);
+            if ($depth > $maxDepth) {
+                $maxDepth = $depth;
+                $deepest = $term;
+            }
+        }
+
+        $path = [];
+        $current = $deepest;
+
+        while ($current instanceof WP_Term) {
+            array_unshift($path, [
+                'id' => (int)$current->term_id,
+                'name' => $current->name,
+                'slug' => $current->slug,
+                'url' => get_term_link($current),
+            ]);
+
+            if (!$current->parent) {
+                break;
+            }
+
+            $parent = get_term($current->parent, 'product_cat');
+            $current = $parent instanceof WP_Term ? $parent : null;
+        }
+
+        $names = array_column($path, 'name');
+        $names[] = $product->get_name();
+
+        return [
+            'path' => $path,
+            'trail' => implode(' > ', $names),
+        ];
+    }
+
+    private function termDepth(WP_Term $term): int
+    {
+        $depth = 0;
+        $current = $term;
+
+        while ($current instanceof WP_Term && $current->parent) {
+            $depth++;
+            $parent = get_term($current->parent, $current->taxonomy);
+            if (!$parent instanceof WP_Term) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        return $depth;
     }
 
     private function media(WC_Product $product): array
@@ -161,34 +341,6 @@ class ProductMapper
         ];
     }
 
-    private function seo(WC_Product $product): array
-    {
-        $id = $product->get_id();
-
-        return [
-            'title' => get_post_meta(
-                $id,
-                '_yoast_wpseo_title',
-                true
-            ),
-            'description' => get_post_meta(
-                $id,
-                '_yoast_wpseo_metadesc',
-                true
-            ),
-            'canonical' => get_post_meta(
-                $id,
-                '_yoast_wpseo_canonical',
-                true
-            ),
-            'focus_keyword' => get_post_meta(
-                $id,
-                '_yoast_wpseo_focuskw',
-                true
-            ),
-        ];
-    }
-
     private function relations(WC_Product $product): array
     {
         return [
@@ -204,5 +356,44 @@ class ProductMapper
             'review_count' => $product->get_review_count(),
             'rating_count' => $product->get_rating_counts(),
         ];
+    }
+
+    private function attributeValue(WC_Product $product, array $slugs): string
+    {
+        foreach ($slugs as $slug) {
+            if ($product->get_attribute($slug)) {
+                $value = ai_clean_text($product->get_attribute($slug));
+                if ($value !== '') {
+                    return $value;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function metaString(int $postId, string $key): string
+    {
+        $value = get_post_meta($postId, $key, true);
+
+        if (is_array($value) || is_object($value)) {
+            return '';
+        }
+
+        return trim((string)$value);
+    }
+
+    /**
+     * @param list<string> $values
+     */
+    private function firstNonEmpty(array $values): string
+    {
+        foreach ($values as $value) {
+            if (trim($value) !== '') {
+                return trim($value);
+            }
+        }
+
+        return '';
     }
 }

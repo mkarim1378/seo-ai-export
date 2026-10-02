@@ -127,21 +127,7 @@ class MediaMapper
 
     private function seo(WP_Post $media): array
     {
-        return [
-
-            'title' => get_post_meta(
-                $media->ID,
-                '_yoast_wpseo_title',
-                true
-            ),
-
-            'description' => get_post_meta(
-                $media->ID,
-                '_yoast_wpseo_metadesc',
-                true
-            )
-
-        ];
+        return (new SeoMetaExtractor())->forPost($media->ID, 'category');
     }
 
     private function metadata(WP_Post $media): array
@@ -160,9 +146,11 @@ class MediaMapper
         foreach ($meta as $key => $values) {
 
             if (
-                str_starts_with($key, '_yoast_') ||
+                SeoMetaExtractor::shouldSkipPostMetaKey($key) ||
                 $key === '_edit_lock' ||
-                $key === '_edit_last'
+                $key === '_edit_last' ||
+                $key === '_wp_attachment_image_alt' ||
+                $key === '_wp_attachment_metadata'
             ) {
                 continue;
             }

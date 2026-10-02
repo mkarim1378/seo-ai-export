@@ -25,7 +25,7 @@ Outputs land in `output/` (gitignored):
 ## Roadmap
 
 1. ~~Content structure extraction (headings, internal links with anchors)~~ — branch `feat/content-structure-extraction`
-2. Full SEO meta (Yoast + Rank Math)
+2. ~~Full SEO meta (Yoast + Rank Math)~~ — branch `feat/seo-meta-extraction`
 3. Enriched internal link graph + orphan detection
 4. `seo_audit.json` for AI agents
 
@@ -38,3 +38,18 @@ Each post/page/product/category now includes:
 - `structure.faq_candidates`, `lists_count`, `tables_count`, paragraph metrics
 
 Products are also written to `output/markdown/products/{id}.md`.
+
+### Phase 2 SEO + commerce shape
+
+Normalized `seo` block (Yoast + Rank Math merge, Rank Math preferred when active):
+
+- `title`, `description`, `canonical`, `focus_keyword`, `secondary_keywords`
+- `robots.index` / `robots.follow`, `primary_category`, `breadcrumb_title`
+- Open Graph + Twitter fields, plus `plugin` and per-field `sources`
+
+Products also include:
+
+- `identifiers.brand` / `gtin` / `ean` / `mpn`
+- `variations` summary for variable products
+- full approved `reviews` text
+- category `breadcrumb` path

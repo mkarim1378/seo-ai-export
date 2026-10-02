@@ -28,6 +28,7 @@ require_once AI_EXPORTER_ROOT.'/writers/MarkdownWriter.php';
 |--------------------------------------------------------------------------
 */
 
+require_once AI_EXPORTER_ROOT.'/repositories/SeoMetaExtractor.php';
 require_once AI_EXPORTER_ROOT.'/repositories/ProductMapper.php';
 require_once AI_EXPORTER_ROOT.'/repositories/ProductMetaExtractor.php';
 require_once AI_EXPORTER_ROOT.'/repositories/ProductRepository.php';

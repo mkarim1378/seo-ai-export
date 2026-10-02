@@ -5,10 +5,12 @@ declare(strict_types=1);
 class CategoryMapper
 {
     private ContentStructureExtractor $structureExtractor;
+    private SeoMetaExtractor $seoMetaExtractor;
 
     public function __construct()
     {
         $this->structureExtractor = new ContentStructureExtractor();
+        $this->seoMetaExtractor = new SeoMetaExtractor();
     }
 
     public function map(WP_Term $term): array
@@ -20,7 +22,7 @@ class CategoryMapper
             'content' => $this->content($rawDescription),
             'structure' => $this->structureExtractor->extract($rawDescription),
             'taxonomy' => $this->taxonomy($term),
-            'seo' => $this->seo($term),
+            'seo' => $this->seoMetaExtractor->forTerm($term->term_id),
             'media' => $this->media($term),
             'custom_fields' => $this->customFields($term),
         ];
@@ -70,29 +72,6 @@ class CategoryMapper
         ];
     }
 
-    private function seo(WP_Term $term): array
-    {
-        $id = $term->term_id;
-
-        return [
-            'title' => get_term_meta(
-                $id,
-                'wpseo_title',
-                true
-            ),
-            'description' => get_term_meta(
-                $id,
-                'wpseo_desc',
-                true
-            ),
-            'canonical' => get_term_meta(
-                $id,
-                'wpseo_canonical',
-                true
-            ),
-        ];
-    }
-
     private function media(WP_Term $term): array
     {
         $thumbnail = get_term_meta(
@@ -114,6 +93,10 @@ class CategoryMapper
         $result = [];
 
         foreach ($meta as $key => $value) {
+            if (SeoMetaExtractor::shouldSkipTermMetaKey($key)) {
+                continue;
+            }
+
             $result[$key] = maybe_unserialize(
                 $value[0] ?? ''
             );

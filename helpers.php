@@ -189,24 +189,24 @@ if (!function_exists('ai_attachment')) {
 
         }
 
+        $file = get_attached_file($id);
+        $metadata = wp_get_attachment_metadata($id) ?: [];
+        $filename = $file ? basename($file) : '';
+
         return [
-
             'id' => $id,
-
             'url' => wp_get_attachment_url($id),
-
             'title' => get_the_title($id),
-
             'alt' => get_post_meta(
                 $id,
                 '_wp_attachment_image_alt',
                 true
             ),
-
             'caption' => wp_get_attachment_caption($id),
-
             'mime' => get_post_mime_type($id),
-
+            'width' => isset($metadata['width']) ? (int)$metadata['width'] : null,
+            'height' => isset($metadata['height']) ? (int)$metadata['height'] : null,
+            'filename' => $filename,
         ];
 
     }
