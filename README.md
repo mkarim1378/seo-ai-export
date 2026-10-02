@@ -295,7 +295,7 @@ ai-exporter/
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 ```
 
-خروجی در `dist/ai-exporter.zip` است.
+خروجی در `dist/ai-exporter.zip` است. اسکریپت مسیرها را با `/` داخل زیپ می‌نویسد (سازگار با آنزیپ لینوکس/cPanel). از `Compress-Archive` ویندوز استفاده نکن — روی هاست فایل‌هایی با نام `ai-exporter\builders\...` می‌سازد به‌جای پوشه واقعی.
 
 ---
 

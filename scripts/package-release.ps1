@@ -1,7 +1,14 @@
 # Builds deployable zip for WordPress host upload and prepares release metadata.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
+#
+# IMPORTANT: Do not use Compress-Archive — it stores Windows backslashes in entry
+# names, so Linux/cPanel unzip creates flat files like "ai-exporter\builders\x.php".
+# This script writes ZIP entries with forward-slash paths (ZIP spec / Unix unzip).
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $root
 
@@ -49,10 +56,58 @@ foreach ($item in $include) {
     }
 }
 
-if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
-Compress-Archive -Path $stageDir -DestinationPath $zipPath -Force
+function Add-ZipTree {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDir,
+        [Parameter(Mandatory = $true)][string]$ZipPath,
+        [Parameter(Mandatory = $true)][string]$RootEntryName
+    )
+
+    if (Test-Path $ZipPath) { Remove-Item -Force $ZipPath }
+
+    $zip = [System.IO.Compression.ZipFile]::Open(
+        $ZipPath,
+        [System.IO.Compression.ZipArchiveMode]::Create
+    )
+    try {
+        $sourceFull = (Resolve-Path $SourceDir).Path.TrimEnd('\', '/')
+        $files = Get-ChildItem -Path $sourceFull -Recurse -File
+        foreach ($file in $files) {
+            $relative = $file.FullName.Substring($sourceFull.Length).TrimStart('\', '/')
+            $entryName = ($RootEntryName + '/' + ($relative -replace '\\', '/')) -replace '/+', '/'
+            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip,
+                $file.FullName,
+                $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal
+            )
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+}
+
+Add-ZipTree -SourceDir $stageDir -ZipPath $zipPath -RootEntryName 'ai-exporter'
+
+# Sanity check: entry names must use / not \
+$check = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+    $bad = @($check.Entries | Where-Object { $_.FullName -match '\\' })
+    $sample = @($check.Entries | Select-Object -First 5 -ExpandProperty FullName)
+    if ($bad.Count -gt 0) {
+        throw "Zip still contains backslash entry names (e.g. $($bad[0].FullName))"
+    }
+    if ($sample.Count -eq 0) {
+        throw 'Zip is empty'
+    }
+}
+finally {
+    $check.Dispose()
+}
 
 Write-Output "ZIP=$zipPath"
 Write-Output "TAG=$tag"
 Write-Output "VERSION=$version"
 Write-Output "SHA=$sha"
+Write-Output "SAMPLE_ENTRIES=$($sample -join ' | ')"
