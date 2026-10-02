@@ -1,4 +1,5 @@
 /output/
+/dist/
 .cursor/
 *.log
 .DS_Store
