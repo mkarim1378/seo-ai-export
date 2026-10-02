@@ -292,7 +292,7 @@ ai-exporter/
 ساخت دستی زیپ:
 
 ```powershell
-pwsh -File scripts/package-release.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 ```
 
 خروجی در `dist/ai-exporter.zip` است.
