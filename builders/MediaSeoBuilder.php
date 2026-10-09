@@ -40,7 +40,7 @@ class MediaSeoBuilder
                 'id' => $id,
                 'url' => $url,
                 'title' => $title,
-                'parent_id' => (int)($media['parent']['id'] ?? 0),
+                'parent_id' => (int)($media['parent']['parent_id'] ?? 0),
                 'width' => $width,
                 'height' => $height,
                 'filesize' => $filesize,
