@@ -16,9 +16,20 @@ class SeoAuditExporter
         );
     }
 
-    public function export(array $knowledge, array $brain = [], array $keywordMap = []): array
-    {
-        $audit = (new SeoAuditBuilder())->build($knowledge, $brain, $keywordMap);
+    public function export(
+        array $knowledge,
+        array $brain = [],
+        array $keywordMap = [],
+        array $redirectMap = [],
+        array $hreflang = []
+    ): array {
+        $audit = (new SeoAuditBuilder())->build(
+            $knowledge,
+            $brain,
+            $keywordMap,
+            $redirectMap,
+            $hreflang
+        );
 
         $this->json->write('seo_audit.json', $audit);
 

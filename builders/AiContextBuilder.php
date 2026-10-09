@@ -19,7 +19,10 @@ class AiContextBuilder
         array $brain,
         array $audit,
         array $files = [],
-        array $keywordMap = []
+        array $keywordMap = [],
+        array $auditDiff = [],
+        array $redirectMap = [],
+        array $hreflang = []
     ): array {
         $profile = $brain['site_profile'] ?? [];
         $linkSummary = $brain['link_analysis']['summary'] ?? [];
@@ -28,7 +31,7 @@ class AiContextBuilder
         $top = array_slice($scored, 0, self::MAX_TOP_FINDINGS);
 
         return [
-            'version' => '2.0',
+            'version' => '2.1',
             'generated_at' => function_exists('current_time')
                 ? current_time('mysql')
                 : date('Y-m-d H:i:s'),
@@ -36,7 +39,9 @@ class AiContextBuilder
             'how_to_use' => [
                 'overview' => 'Read site_profile_summary + counts + seo_audit.summary',
                 'priorities' => 'Work next_actions then seo_audit.top_findings ordered by impact_score',
+                'progress' => 'Use audit_diff for before/after (resolved vs added findings)',
                 'keywords' => 'Use keyword_intelligence for inventory, gaps, and suggested primaries',
+                'redirects' => 'Use redirect_map for chains/loops; hreflang.json for multilingual',
                 'one_url' => 'Look up url_index, then open that entity in knowledge.json',
                 'internal_linking' => 'Use internal_link_graph.json / site_brain.link_analysis.link_opportunities',
                 'ignore' => 'Ignore Rank Math/Yoast vanity scores if they appear anywhere',
@@ -51,6 +56,9 @@ class AiContextBuilder
             ],
             'link_analysis_summary' => $linkSummary,
             'keyword_intelligence' => $this->summarizeKeywords($keywordMap),
+            'audit_diff_summary' => $this->summarizeDiff($auditDiff),
+            'redirect_summary' => $this->summarizeRedirects($redirectMap),
+            'hreflang_summary' => $this->summarizeHreflang($hreflang),
             'seo_audit' => [
                 'summary' => $audit['summary'] ?? [
                     'critical' => 0,
@@ -73,11 +81,65 @@ class AiContextBuilder
                 'manifest' => 'json/manifest.json',
                 'site_profile' => 'json/site_profile.json',
                 'seo_audit' => 'json/seo_audit.json',
+                'audit_diff' => 'json/audit_diff.json',
                 'keyword_map' => 'json/keyword_map.json',
+                'redirect_map' => 'json/redirect_map.json',
+                'hreflang' => 'json/hreflang.json',
                 'site_brain' => 'json/site_brain.json',
                 'internal_link_graph' => 'json/internal_link_graph.json',
                 'knowledge' => 'json/knowledge.json',
             ],
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function summarizeDiff(array $diff): array
+    {
+        if ($diff === []) {
+            return ['enabled' => false, 'note' => 'No previous seo_audit.json to diff against.'];
+        }
+
+        return [
+            'enabled' => !empty($diff['has_previous']),
+            'summary' => $diff['summary'] ?? [],
+            'previous_generated_at' => $diff['previous_generated_at'] ?? null,
+            'resolved_sample' => array_slice($diff['resolved'] ?? [], 0, 10),
+            'added_sample' => array_slice($diff['added'] ?? [], 0, 10),
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function summarizeRedirects(array $map): array
+    {
+        if ($map === []) {
+            return ['enabled' => false];
+        }
+
+        return [
+            'enabled' => ($map['summary']['rule_count'] ?? 0) > 0,
+            'sources' => $map['sources'] ?? [],
+            'summary' => $map['summary'] ?? [],
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function summarizeHreflang(array $map): array
+    {
+        if ($map === []) {
+            return ['enabled' => false];
+        }
+
+        return [
+            'enabled' => !empty($map['enabled']),
+            'providers' => $map['providers'] ?? [],
+            'summary' => $map['summary'] ?? [],
+            'gap_count' => count($map['gaps'] ?? []),
         ];
     }
 

@@ -35,6 +35,9 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 | **`manifest.json`** | Run summary, counts, audit/link/keyword/site_profile summaries, file index | Tiny overview if ai_context is missing |
 | **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps (+reachable), special pages, SEO plugins, `seo_plugin_globals` | Site-level crawlability |
 | **`keyword_map.json`** | Keyword inventory, url_targets + coverage, cannibalization, gaps, suggestions, optional GSC merge | On-site keyword research / primary suggestions |
+| **`audit_diff.json`** | added/resolved/severity_changed vs previous seo_audit | Before/after progress, monthly reports |
+| **`redirect_map.json`** | Redirect rules + chains/loops | URL migrations, redirect errors |
+| **`hreflang.json`** | Languages + translation pairs (Polylang/WPML) | Multilingual SEO |
 | **`seo_audit.json`** | Full findings with severity + `ai_action` (heuristics, not Google scores) | Complete issue list beyond the ai_context cap |
 | **`knowledge.json`** | Full entities with content/structure/seo (+ `seo.keyword_coverage`) | One URL rewrite, FAQ, reviews |
 | **`site_brain.json`** | Stats, enriched clusters (pillars/keywords), graph, navigation, link_analysis (+ opportunities), entity_index | Strategy, IA, navigation |
@@ -61,6 +64,9 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 | Exec report / KPI / overall status | `ai_context.json` or `manifest.json` | Full `seo_audit` for more examples |
 | Crawlability / robots / sitemap / visibility / global noindex | `ai_context.site_profile_summary` or `site_profile.json` | — |
 | Keyword suggestions / inventory / gaps / soft cannibalization | `keyword_map.json` or `ai_context.keyword_intelligence` | Confirm coverage on entity in `knowledge.json` |
+| Before/after progress / what got fixed? | `audit_diff.json` or `ai_context.audit_diff_summary` | — |
+| Redirect chains / loops / redirect rules | `redirect_map.json` | Redirect findings in `seo_audit` |
+| Hreflang / translations / multilingual | `hreflang.json` | — |
 | One product/post/page (content, title, meta, H1, FAQ, coverage) | `knowledge.json` (that entity) | Related finding → `seo_audit.json` |
 | Topic clusters / IA / pillars / content strategy | `site_brain.json` (enriched clusters) | Sample entities in `knowledge.json` |
 | Menus, navigation, user paths | `site_brain.json` (navigation) | Product breadcrumb in `knowledge.json` |

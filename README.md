@@ -28,6 +28,9 @@
 |--------|--------|
 | `knowledge.json` | مرجع کامل موجودیت‌ها (+ `seo.keyword_coverage`) برای چت با AI |
 | `keyword_map.json` | inventory کیورد، coverage، cannibalization، gaps، پیشنهاد primary/secondary |
+| `audit_diff.json` | مقایسه با export قبلی (added / resolved / severity_changed) |
+| `redirect_map.json` | قوانین redirect (Rank Math / Yoast / Redirection) + chain/loop |
+| `hreflang.json` | زبان‌ها و جفت‌های ترجمه Polylang/WPML |
 | `seo_audit.json` | لیست مشکلات و فرصت‌های سئو با اولویت و `ai_action` |
 | `ai_context.json` | بسته شروع AI (خلاصه + impact-ranked findings + next_actions + keyword summary) |
 | `site_profile.json` | visibility، permalink، robots/sitemap، `seo_plugin_globals`، صفحات ویژه |
@@ -134,6 +137,9 @@ input/                   ← اختیاری
 |------|------------|--------------|
 | **`ai_context.json`** | بسته شروع: خلاصه سایت، `next_actions`، findings با impact، keyword summary، url_index غنی | **اولویت ۱ — شروع کار با Gem** |
 | **`keyword_map.json`** | inventory، پیشنهاد کیورد، gaps، cannibalization، اختیاری GSC | کیورد ریسرچ / پیشنهاد primary |
+| **`audit_diff.json`** | diff با `seo_audit` قبلی | مقایسه قبل/بعد بعد از اصلاحات |
+| **`redirect_map.json`** | قوانین redirect + تحلیل chain/loop | Technical SEO / مهاجرت URL |
+| **`hreflang.json`** | نقشه زبان و ترجمه‌ها | سایت چندزبانه |
 | **`seo_audit.json`** | همه یافته‌های قابل‌اجرا با شدت و `ai_action` | وقتی از سقف ai_context رد شدی |
 | **`manifest.json`** | خلاصه اجرا و ایندکس فایل‌ها | overview خیلی سریع |
 | **`site_profile.json`** | visibility، robots، sitemap reachable، seo_plugin_globals | technical SEO سطح‌سایت |
@@ -354,6 +360,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 6. ~~impact_score / next_actions در `ai_context` + خوشه‌های pillar-aware~~
 7. ~~commerce schema essentials + sales-weighted + seo_plugin_globals~~
 8. ~~رندر `do_blocks`/`the_content` + JSON-LD واقعی vs ادعای پلاگین + tag nodes~~
+9. ~~`audit_diff` قبل/بعد + `redirect_map` + `hreflang`~~
 
 ---
 

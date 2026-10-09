@@ -37,6 +37,9 @@
 | **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link/keyword/site_profile، ایندکس فایل‌ها | overview خیلی سریع اگر ai_context نبود |
 | **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps (+reachable)، صفحات ویژه، پلاگین سئو، `seo_plugin_globals` | crawlability سطح‌سایت |
 | **`keyword_map.json`** | inventory کیوردها، url_targets + coverage، cannibalization، gaps، suggestions، اختیاری GSC | کیورد ریسرچ on-site، پیشنهاد primary/secondary |
+| **`audit_diff.json`** | added/resolved/severity_changed نسبت به seo_audit قبلی | پیشرفت قبل/بعد، گزارش ماهانه |
+| **`redirect_map.json`** | قوانین redirect + chains/loops | مهاجرت URL، خطای redirect |
+| **`hreflang.json`** | زبان‌ها و translation pairs (Polylang/WPML) | سئوی چندزبانه |
 | **`seo_audit.json`** | همه findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست) | لیست کامل مشکلات وقتی از سقف ai_context رد شدی |
 | **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo (+ `seo.keyword_coverage`) | جزئیات یک URL، بازنویسی، FAQ، نظرات |
 | **`site_brain.json`** | آمار، clusters غنی (pillar/keywords)، graph، navigation، link_analysis (+ opportunities)، entity_index | استراتژی، IA، ناوبری |
@@ -63,6 +66,9 @@
 | گزارش مدیریتی / KPI / وضعیت کلی | `ai_context.json` یا `manifest.json` | `seo_audit` برای مثال‌های بیشتر |
 | crawlability / robots / sitemap / visibility / noindex سراسری | `ai_context.site_profile_summary` یا `site_profile.json` | — |
 | پیشنهاد کیورد / inventory / gap / cannibalization نرم | `keyword_map.json` یا `ai_context.keyword_intelligence` | تأیید coverage روی entity در `knowledge.json` |
+| پیشرفت قبل/بعد / چه چیزهایی حل شد؟ | `audit_diff.json` یا `ai_context.audit_diff_summary` | — |
+| redirect chain / loop / قوانین ریدایرکت | `redirect_map.json` | findingهای redirect در `seo_audit` |
+| hreflang / ترجمه / چندزبانه | `hreflang.json` | — |
 | یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ، coverage) | `knowledge.json` (همان entity) | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
 | Topic Cluster / IA / pillar / استراتژی محتوایی | `site_brain.json` (clusters غنی) | نمونه موجودیت‌ها در `knowledge.json` |
 | منو، ناوبری، مسیر کاربر در سایت | `site_brain.json` (navigation) | breadcrumb محصول در `knowledge.json` |

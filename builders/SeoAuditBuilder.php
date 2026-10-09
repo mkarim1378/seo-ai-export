@@ -14,8 +14,13 @@ class SeoAuditBuilder
     private const DESC_MIN_CHARS = 70;
     private const DESC_MAX_CHARS = 160;
 
-    public function build(array $knowledge, array $brain = [], array $keywordMap = []): array
-    {
+    public function build(
+        array $knowledge,
+        array $brain = [],
+        array $keywordMap = [],
+        array $redirectMap = [],
+        array $hreflang = []
+    ): array {
         $findings = [];
 
         $urlables = $this->collectUrlables($knowledge);
@@ -51,7 +56,9 @@ class SeoAuditBuilder
             $this->auditUnresolvedInternalLinks($brain),
             $this->auditWeakHubs($brain),
             $this->auditLinkOpportunities($brain),
-            $this->auditAnchorKeywordMismatch($brain, $keywordMap)
+            $this->auditAnchorKeywordMismatch($brain, $keywordMap),
+            $this->auditRedirectIssues($redirectMap),
+            $this->auditHreflangGaps($hreflang)
         );
 
         usort(
@@ -1895,6 +1902,104 @@ class SeoAuditBuilder
                 $checked++;
                 break;
             }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditRedirectIssues(array $redirectMap): array
+    {
+        if ($redirectMap === [] || empty($redirectMap['rules'])) {
+            return [];
+        }
+
+        $findings = [];
+        $item = [
+            'entity_type' => 'site',
+            'entity_id' => 0,
+            'title' => 'redirects',
+            'url' => '',
+        ];
+
+        $analysis = $redirectMap['analysis'] ?? [];
+
+        if (!empty($analysis['loops'])) {
+            $findings[] = $this->finding(
+                $item,
+                'redirect_loop',
+                'critical',
+                'fix_redirect_loops',
+                'Redirect rules form a loop (A→B→A).',
+                [
+                    'loop_count' => count($analysis['loops']),
+                    'samples' => array_slice($analysis['loops'], 0, 5),
+                ]
+            );
+        }
+
+        if (!empty($analysis['chains'])) {
+            $findings[] = $this->finding(
+                $item,
+                'redirect_chain',
+                'warning',
+                'flatten_redirect_chains',
+                'Multi-hop redirect chains detected (A→B→C). Prefer a single hop.',
+                [
+                    'chain_count' => count($analysis['chains']),
+                    'samples' => array_slice($analysis['chains'], 0, 5),
+                ]
+            );
+        }
+
+        if (!empty($analysis['duplicate_from'])) {
+            $findings[] = $this->finding(
+                $item,
+                'duplicate_redirect_source',
+                'warning',
+                'dedupe_redirect_sources',
+                'Multiple redirect rules share the same source path.',
+                [
+                    'duplicate_from_count' => count($analysis['duplicate_from']),
+                    'samples' => array_slice($analysis['duplicate_from'], 0, 5),
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditHreflangGaps(array $hreflang): array
+    {
+        if ($hreflang === [] || empty($hreflang['enabled'])) {
+            return [];
+        }
+
+        $findings = [];
+        foreach (array_slice($hreflang['gaps'] ?? [], 0, 30) as $gap) {
+            if (($gap['type'] ?? '') !== 'missing_translation_group') {
+                continue;
+            }
+            $findings[] = $this->finding(
+                [
+                    'entity_type' => (string)($gap['entity_type'] ?? 'unknown'),
+                    'entity_id' => (int)($gap['entity_id'] ?? 0),
+                    'title' => (string)($gap['title'] ?? ''),
+                    'url' => (string)($gap['url'] ?? ''),
+                ],
+                'missing_hreflang_translation',
+                'opportunity',
+                'add_or_link_translation',
+                'Published URL has no translation group in the multilingual plugin.',
+                [
+                    'providers' => $hreflang['providers'] ?? [],
+                ]
+            );
         }
 
         return $findings;

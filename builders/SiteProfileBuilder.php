@@ -52,6 +52,29 @@ class SiteProfileBuilder
             ],
             'seo_plugins' => $this->seoPlugins(),
             'seo_plugin_globals' => $this->seoPluginGlobals(),
+            'i18n' => $this->i18nSummary(),
+        ];
+    }
+
+    /**
+     * Lightweight multilingual signal for site_profile (full map in hreflang.json).
+     *
+     * @return array<string,mixed>
+     */
+    private function i18nSummary(): array
+    {
+        $providers = [];
+        if (function_exists('pll_languages_list') || defined('POLYLANG_VERSION')) {
+            $providers[] = 'polylang';
+        }
+        if (defined('ICL_SITEPRESS_VERSION') || defined('WPML_VERSION')) {
+            $providers[] = 'wpml';
+        }
+
+        return [
+            'locale' => get_locale(),
+            'multilingual_plugins' => $providers,
+            'hreflang_file' => 'json/hreflang.json',
         ];
     }
 

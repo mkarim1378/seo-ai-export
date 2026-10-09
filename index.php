@@ -74,6 +74,12 @@ require_once AI_EXPORTER_ROOT.'/builders/SiteBrainBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/KeywordIntelligenceBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/KeywordIntelligenceExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/RedirectMapBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/RedirectMapExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/HreflangBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/HreflangExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/AuditDiffBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/AuditDiffExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/AiContextBuilder.php';
@@ -141,8 +147,34 @@ try {
 
     $json->write('knowledge.json', $knowledge);
 
-    $audit = (new SeoAuditExporter($config))->export($knowledge, $brain, $keywordMap);
+    $redirectMap = [];
+    if (!empty($config['export']['redirect_map'])) {
+        $redirectMap = (new RedirectMapExporter($config))->export($knowledge);
+    }
+
+    $hreflang = [];
+    if (!empty($config['export']['hreflang'])) {
+        $hreflang = (new HreflangExporter($config))->export($knowledge);
+    }
+
+    $auditDiffExporter = new AuditDiffExporter($config);
+    $previousAudit = !empty($config['export']['audit_diff'])
+        ? $auditDiffExporter->loadPreviousAudit()
+        : null;
+
+    $audit = (new SeoAuditExporter($config))->export(
+        $knowledge,
+        $brain,
+        $keywordMap,
+        $redirectMap,
+        $hreflang
+    );
     $auditSummary = $audit['summary'] ?? [];
+
+    $auditDiff = [];
+    if (!empty($config['export']['audit_diff'])) {
+        $auditDiff = $auditDiffExporter->export($previousAudit, $audit);
+    }
 
     $files = [
         'ai_context' => 'json/ai_context.json',
@@ -151,7 +183,10 @@ try {
         'site_brain' => 'json/site_brain.json',
         'internal_link_graph' => 'json/internal_link_graph.json',
         'keyword_map' => 'json/keyword_map.json',
+        'redirect_map' => 'json/redirect_map.json',
+        'hreflang' => 'json/hreflang.json',
         'seo_audit' => 'json/seo_audit.json',
+        'audit_diff' => 'json/audit_diff.json',
         'manifest' => 'json/manifest.json',
     ];
 
@@ -162,7 +197,10 @@ try {
             $brain,
             $audit,
             $files,
-            $keywordMap
+            $keywordMap,
+            $auditDiff,
+            $redirectMap,
+            $hreflang
         );
     }
 
@@ -193,6 +231,9 @@ try {
         ],
         'link_analysis' => $linkSummary,
         'keyword_map' => $keywordMap['summary'] ?? [],
+        'redirect_map' => $redirectMap['summary'] ?? [],
+        'hreflang' => $hreflang['summary'] ?? [],
+        'audit_diff' => $auditDiff['summary'] ?? [],
         'seo_audit' => $auditSummary,
         'ai_context' => [
             'top_findings' => count($aiContext['seo_audit']['top_findings'] ?? []),
@@ -222,6 +263,21 @@ try {
             'name' => 'keyword_map.json',
             'href' => 'output/json/keyword_map.json',
             'description' => 'Keyword inventory, gaps, suggestions, cannibalization',
+        ],
+        [
+            'name' => 'audit_diff.json',
+            'href' => 'output/json/audit_diff.json',
+            'description' => 'Before/after vs previous seo_audit (added/resolved)',
+        ],
+        [
+            'name' => 'redirect_map.json',
+            'href' => 'output/json/redirect_map.json',
+            'description' => 'Redirect rules + chain/loop analysis',
+        ],
+        [
+            'name' => 'hreflang.json',
+            'href' => 'output/json/hreflang.json',
+            'description' => 'Polylang/WPML language + translation pairs',
         ],
         [
             'name' => 'seo_audit.json',
