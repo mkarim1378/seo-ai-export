@@ -50,7 +50,9 @@ class KnowledgeGraphBuilder
 
                     'type' => 'belongs_to',
 
-                    'to' => $category
+                    'to' => is_array($category)
+                        ? (string)($category['slug'] ?? $category['name'] ?? '')
+                        : (string)$category,
 
                 ];
 

@@ -139,28 +139,6 @@ class MediaMapper
 
     private function customFields(WP_Post $media): array
     {
-        $meta = get_post_meta($media->ID);
-
-        $result = [];
-
-        foreach ($meta as $key => $values) {
-
-            if (
-                SeoMetaExtractor::shouldSkipPostMetaKey($key) ||
-                $key === '_edit_lock' ||
-                $key === '_edit_last' ||
-                $key === '_wp_attachment_image_alt' ||
-                $key === '_wp_attachment_metadata'
-            ) {
-                continue;
-            }
-
-            $result[$key] = maybe_unserialize(
-                $values[0] ?? ''
-            );
-
-        }
-
-        return $result;
+        return CustomFieldsFilter::filterMetaMap(get_post_meta($media->ID));
     }
 }

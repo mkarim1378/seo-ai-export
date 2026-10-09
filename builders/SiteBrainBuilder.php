@@ -23,7 +23,7 @@ class SiteBrainBuilder
         $analysis = $linkGraph['analysis'] ?? [];
 
         return [
-            'version' => '3.1',
+            'version' => '3.2',
             'generated_at' => current_time('mysql'),
             'site' => $knowledge['site'],
             'statistics' => $knowledge['statistics'],
@@ -46,13 +46,37 @@ class SiteBrainBuilder
                 'links_by_category' => $analysis['links_by_category'] ?? [],
             ],
             'relationships' => $this->relationshipBuilder->build($knowledge),
-            'knowledge' => [
-                'products' => $knowledge['products'],
-                'categories' => $knowledge['categories'],
-                'posts' => $knowledge['posts'],
-                'pages' => $knowledge['pages'],
-                'media' => $knowledge['media'],
+            'entity_index' => [
+                'note' => 'Light index only. Full entity bodies are in knowledge.json.',
+                'products' => $this->indexEntities($knowledge['products'] ?? [], 'product'),
+                'categories' => $this->indexEntities($knowledge['categories'] ?? [], 'category'),
+                'posts' => $this->indexEntities($knowledge['posts'] ?? [], 'post'),
+                'pages' => $this->indexEntities($knowledge['pages'] ?? [], 'page'),
+                'media' => $this->indexEntities($knowledge['media'] ?? [], 'media'),
             ],
         ];
+    }
+
+    /**
+     * @param list<array<string,mixed>> $entities
+     * @return list<array<string,mixed>>
+     */
+    private function indexEntities(array $entities, string $type): array
+    {
+        $index = [];
+
+        foreach ($entities as $entity) {
+            $index[] = [
+                'id' => (int)($entity['basic']['id'] ?? 0),
+                'type' => $type,
+                'title' => (string)($entity['basic']['title'] ?? $entity['basic']['name'] ?? ''),
+                'url' => (string)($entity['basic']['url'] ?? ''),
+                'status' => (string)($entity['basic']['status'] ?? 'publish'),
+                'word_count' => (int)($entity['content']['word_count'] ?? 0),
+                'seo_title' => (string)($entity['seo']['title'] ?? ''),
+            ];
+        }
+
+        return $index;
     }
 }

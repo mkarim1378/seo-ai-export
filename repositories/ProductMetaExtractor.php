@@ -6,34 +6,20 @@ class ProductMetaExtractor
 {
     public function extract(int $productId): array
     {
-        $meta = get_post_meta($productId);
+        $filtered = CustomFieldsFilter::filterMetaMap(get_post_meta($productId));
 
-        $result = [];
-
-        foreach ($meta as $key => $values) {
-
-            if ($this->shouldSkip($key)) {
-                continue;
+        foreach (array_keys($filtered) as $key) {
+            if ($this->shouldSkipCommerceKey((string)$key)) {
+                unset($filtered[$key]);
             }
-
-            $value = maybe_unserialize($values[0] ?? '');
-
-            if (is_array($value)) {
-                $value = $this->normalizeArray($value);
-            }
-
-            $result[$key] = $value;
         }
 
-        return $result;
+        return $filtered;
     }
 
-    private function shouldSkip(string $key): bool
+    private function shouldSkipCommerceKey(string $key): bool
     {
         static $skip = [
-            '_edit_lock',
-            '_edit_last',
-            '_thumbnail_id',
             '_price',
             '_regular_price',
             '_sale_price',
@@ -70,42 +56,6 @@ class ProductMetaExtractor
             '_alg_ean',
         ];
 
-        if (in_array($key, $skip, true)) {
-            return true;
-        }
-
-        return SeoMetaExtractor::shouldSkipPostMetaKey($key);
-    }
-
-    private function normalizeArray(array $array): array
-    {
-        $result = [];
-
-        foreach ($array as $key => $value) {
-
-            if (is_array($value)) {
-                $result[$key] = $this->normalizeArray($value);
-                continue;
-            }
-
-            if (is_object($value)) {
-                $result[$key] = json_decode(
-                    wp_json_encode($value),
-                    true
-                );
-                continue;
-            }
-
-            if (is_bool($value)) {
-                $result[$key] = $value;
-                continue;
-            }
-
-            $result[$key] = is_string($value)
-                ? ai_clean_text($value)
-                : $value;
-        }
-
-        return $result;
+        return in_array($key, $skip, true);
     }
 }

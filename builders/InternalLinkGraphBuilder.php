@@ -104,10 +104,9 @@ class InternalLinkGraphBuilder
                     'url' => (string)($item['basic']['url'] ?? ''),
                     'status' => (string)($item['basic']['status'] ?? ''),
                     'word_count' => (int)($item['content']['word_count'] ?? 0),
-                    'categories' => array_values(array_filter(array_map(
-                        'strval',
+                    'categories' => $this->categoryLabels(
                         $item['taxonomy']['categories'] ?? []
-                    ))),
+                    ),
                     'outgoing_links' => $outgoing,
                     'outgoing_count' => count($outgoing),
                     'incoming_count' => 0,
@@ -120,6 +119,29 @@ class InternalLinkGraphBuilder
         }
 
         return $entities;
+    }
+
+    /**
+     * @param list<mixed> $categories
+     * @return list<string>
+     */
+    private function categoryLabels(array $categories): array
+    {
+        $labels = [];
+
+        foreach ($categories as $category) {
+            if (is_array($category)) {
+                $label = (string)($category['name'] ?? $category['slug'] ?? '');
+            } else {
+                $label = (string)$category;
+            }
+
+            if ($label !== '') {
+                $labels[] = $label;
+            }
+        }
+
+        return array_values(array_unique($labels));
     }
 
     /**

@@ -115,17 +115,37 @@ class ProductMapper
     private function taxonomy(WC_Product $product): array
     {
         return [
-            'categories' => wp_get_post_terms(
-                $product->get_id(),
-                'product_cat',
-                ['fields' => 'names']
-            ),
-            'tags' => wp_get_post_terms(
-                $product->get_id(),
-                'product_tag',
-                ['fields' => 'names']
-            ),
+            'categories' => $this->mapTerms($product->get_id(), 'product_cat'),
+            'tags' => $this->mapTerms($product->get_id(), 'product_tag'),
         ];
+    }
+
+    /**
+     * @return list<array{id:int,name:string,slug:string}>
+     */
+    private function mapTerms(int $productId, string $taxonomy): array
+    {
+        $terms = wp_get_post_terms($productId, $taxonomy);
+
+        if (!is_array($terms) || is_wp_error($terms)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($terms as $term) {
+            if (!$term instanceof WP_Term) {
+                continue;
+            }
+
+            $result[] = [
+                'id' => (int)$term->term_id,
+                'name' => $term->name,
+                'slug' => $term->slug,
+            ];
+        }
+
+        return $result;
     }
 
     private function attributes(WC_Product $product): array

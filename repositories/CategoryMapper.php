@@ -36,6 +36,7 @@ class CategoryMapper
             'slug' => $term->slug,
             'url' => get_term_link($term),
             'count' => $term->count,
+            'parent' => (int)$term->parent,
         ];
     }
 
@@ -89,19 +90,9 @@ class CategoryMapper
 
     private function customFields(WP_Term $term): array
     {
-        $meta = get_term_meta($term->term_id);
-        $result = [];
-
-        foreach ($meta as $key => $value) {
-            if (SeoMetaExtractor::shouldSkipTermMetaKey($key)) {
-                continue;
-            }
-
-            $result[$key] = maybe_unserialize(
-                $value[0] ?? ''
-            );
-        }
-
-        return $result;
+        return CustomFieldsFilter::filterMetaMap(
+            get_term_meta($term->term_id),
+            true
+        );
     }
 }

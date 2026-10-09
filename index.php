@@ -11,6 +11,7 @@ $config = require AI_EXPORTER_ROOT . '/config.php';
 require_once AI_EXPORTER_ROOT . '/helpers.php';
 require_once AI_EXPORTER_ROOT . '/helpers/TextMetrics.php';
 require_once AI_EXPORTER_ROOT . '/helpers/ContentStructureExtractor.php';
+require_once AI_EXPORTER_ROOT . '/helpers/CustomFieldsFilter.php';
 
 /*
 |--------------------------------------------------------------------------

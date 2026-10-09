@@ -100,23 +100,6 @@ class PageMapper
 
     private function customFields(WP_Post $page): array
     {
-        $meta = get_post_meta($page->ID);
-        $result = [];
-
-        foreach ($meta as $key => $values) {
-            if (
-                SeoMetaExtractor::shouldSkipPostMetaKey($key) ||
-                $key === '_edit_lock' ||
-                $key === '_edit_last'
-            ) {
-                continue;
-            }
-
-            $result[$key] = maybe_unserialize(
-                $values[0] ?? ''
-            );
-        }
-
-        return $result;
+        return CustomFieldsFilter::filterMetaMap(get_post_meta($page->ID));
     }
 }

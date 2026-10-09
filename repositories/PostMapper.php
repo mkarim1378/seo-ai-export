@@ -60,17 +60,37 @@ class PostMapper
     private function taxonomy(WP_Post $post): array
     {
         return [
-            'categories' => wp_get_post_terms(
-                $post->ID,
-                'category',
-                ['fields' => 'names']
-            ),
-            'tags' => wp_get_post_terms(
-                $post->ID,
-                'post_tag',
-                ['fields' => 'names']
-            ),
+            'categories' => $this->mapTerms($post->ID, 'category'),
+            'tags' => $this->mapTerms($post->ID, 'post_tag'),
         ];
+    }
+
+    /**
+     * @return list<array{id:int,name:string,slug:string}>
+     */
+    private function mapTerms(int $postId, string $taxonomy): array
+    {
+        $terms = wp_get_post_terms($postId, $taxonomy);
+
+        if (!is_array($terms) || is_wp_error($terms)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($terms as $term) {
+            if (!$term instanceof WP_Term) {
+                continue;
+            }
+
+            $result[] = [
+                'id' => (int)$term->term_id,
+                'name' => $term->name,
+                'slug' => $term->slug,
+            ];
+        }
+
+        return $result;
     }
 
     private function author(WP_Post $post): array
@@ -94,23 +114,6 @@ class PostMapper
 
     private function customFields(WP_Post $post): array
     {
-        $meta = get_post_meta($post->ID);
-        $result = [];
-
-        foreach ($meta as $key => $values) {
-            if (
-                SeoMetaExtractor::shouldSkipPostMetaKey($key) ||
-                $key === '_edit_lock' ||
-                $key === '_edit_last'
-            ) {
-                continue;
-            }
-
-            $result[$key] = maybe_unserialize(
-                $values[0] ?? ''
-            );
-        }
-
-        return $result;
+        return CustomFieldsFilter::filterMetaMap(get_post_meta($post->ID));
     }
 }
