@@ -24,7 +24,10 @@ class AiContextExporter
         array $keywordMap = [],
         array $auditDiff = [],
         array $redirectMap = [],
-        array $hreflang = []
+        array $hreflang = [],
+        array $sitemapCoverage = [],
+        array $mediaSeo = [],
+        array $contentDuplicates = []
     ): array {
         $context = (new AiContextBuilder())->build(
             $knowledge,
@@ -34,7 +37,10 @@ class AiContextExporter
             $keywordMap,
             $auditDiff,
             $redirectMap,
-            $hreflang
+            $hreflang,
+            $sitemapCoverage,
+            $mediaSeo,
+            $contentDuplicates
         );
 
         $this->json->write('ai_context.json', $context);

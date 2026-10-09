@@ -38,6 +38,9 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 | **`audit_diff.json`** | added/resolved/severity_changed vs previous seo_audit | Before/after progress, monthly reports |
 | **`redirect_map.json`** | Redirect rules + chains/loops | URL migrations, redirect errors |
 | **`hreflang.json`** | Languages + translation pairs (Polylang/WPML) | Multilingual SEO |
+| **`sitemap_coverage.json`** | Sitemap URLs vs export | Index/sitemap gaps |
+| **`media_seo.json`** | Missing alt, oversized files, huge dimensions | Image optimization |
+| **`content_duplicates.json`** | Near-duplicate body fingerprints + duplicate titles | Duplicate content |
 | **`seo_audit.json`** | Full findings with severity + `ai_action` (heuristics, not Google scores) | Complete issue list beyond the ai_context cap |
 | **`knowledge.json`** | Full entities with content/structure/seo (+ `seo.keyword_coverage`) | One URL rewrite, FAQ, reviews |
 | **`site_brain.json`** | Stats, enriched clusters (pillars/keywords), graph, navigation, link_analysis (+ opportunities), entity_index | Strategy, IA, navigation |
@@ -67,6 +70,9 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 | Before/after progress / what got fixed? | `audit_diff.json` or `ai_context.audit_diff_summary` | — |
 | Redirect chains / loops / redirect rules | `redirect_map.json` | Redirect findings in `seo_audit` |
 | Hreflang / translations / multilingual | `hreflang.json` | — |
+| Sitemap coverage / URLs missing from sitemap | `sitemap_coverage.json` | — |
+| Oversized images / media library alt | `media_seo.json` | — |
+| Duplicate / near-duplicate content | `content_duplicates.json` | `near_duplicate_content` findings in audit |
 | One product/post/page (content, title, meta, H1, FAQ, coverage) | `knowledge.json` (that entity) | Related finding → `seo_audit.json` |
 | Topic clusters / IA / pillars / content strategy | `site_brain.json` (enriched clusters) | Sample entities in `knowledge.json` |
 | Menus, navigation, user paths | `site_brain.json` (navigation) | Product breadcrumb in `knowledge.json` |

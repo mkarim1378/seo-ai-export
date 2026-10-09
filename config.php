@@ -10,7 +10,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'version' => '3.2.0',
+    'version' => '3.3.0',
 
     /*
     |--------------------------------------------------------------------------
@@ -67,6 +67,12 @@ return [
         'hreflang' => true,
 
         'audit_diff' => true,
+
+        'sitemap_coverage' => true,
+
+        'media_seo' => true,
+
+        'content_duplicates' => true,
 
         'ai_context' => true,
 

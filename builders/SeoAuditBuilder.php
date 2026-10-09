@@ -19,7 +19,10 @@ class SeoAuditBuilder
         array $brain = [],
         array $keywordMap = [],
         array $redirectMap = [],
-        array $hreflang = []
+        array $hreflang = [],
+        array $sitemapCoverage = [],
+        array $mediaSeo = [],
+        array $contentDuplicates = []
     ): array {
         $findings = [];
 
@@ -58,7 +61,10 @@ class SeoAuditBuilder
             $this->auditLinkOpportunities($brain),
             $this->auditAnchorKeywordMismatch($brain, $keywordMap),
             $this->auditRedirectIssues($redirectMap),
-            $this->auditHreflangGaps($hreflang)
+            $this->auditHreflangGaps($hreflang),
+            $this->auditSitemapCoverage($sitemapCoverage),
+            $this->auditMediaSeo($mediaSeo),
+            $this->auditContentDuplicates($contentDuplicates)
         );
 
         usort(
@@ -2000,6 +2006,169 @@ class SeoAuditBuilder
                     'providers' => $hreflang['providers'] ?? [],
                 ]
             );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditSitemapCoverage(array $coverage): array
+    {
+        if ($coverage === [] || empty($coverage['summary'])) {
+            return [];
+        }
+
+        $findings = [];
+        $item = [
+            'entity_type' => 'site',
+            'entity_id' => 0,
+            'title' => 'sitemap',
+            'url' => '',
+        ];
+
+        $summary = $coverage['summary'];
+        $missingFromSitemap = (int)($summary['in_export_not_sitemap'] ?? 0);
+        $orphanInSitemap = (int)($summary['in_sitemap_not_exported'] ?? 0);
+        $errors = (int)($summary['fetch_errors'] ?? 0);
+
+        if ($errors > 0 && (int)($summary['sitemap_url_count'] ?? 0) === 0) {
+            $findings[] = $this->finding(
+                $item,
+                'sitemap_fetch_failed',
+                'warning',
+                'fix_sitemap_reachability',
+                'Could not fetch/parse sitemap URLs for coverage comparison.',
+                [
+                    'errors' => array_slice($coverage['errors'] ?? [], 0, 5),
+                    'sitemaps_checked' => $coverage['sitemaps_checked'] ?? [],
+                ]
+            );
+        }
+
+        if ($missingFromSitemap >= 5) {
+            $findings[] = $this->finding(
+                $item,
+                'urls_missing_from_sitemap',
+                'warning',
+                'include_urls_in_sitemap',
+                'Several exported published URLs were not found in sitemap XML.',
+                [
+                    'count' => $missingFromSitemap,
+                    'coverage_pct' => $summary['coverage_pct'] ?? null,
+                    'samples' => array_slice($coverage['in_export_not_sitemap'] ?? [], 0, 8),
+                ]
+            );
+        }
+
+        if ($orphanInSitemap >= 10) {
+            $findings[] = $this->finding(
+                $item,
+                'sitemap_urls_not_in_export',
+                'opportunity',
+                'review_sitemap_extra_urls',
+                'Sitemap lists URLs not present in the exported entity set (other CPT/archives/filters are common).',
+                [
+                    'count' => $orphanInSitemap,
+                    'samples' => array_slice($coverage['in_sitemap_not_exported'] ?? [], 0, 8),
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditMediaSeo(array $mediaSeo): array
+    {
+        if ($mediaSeo === [] || empty($mediaSeo['summary'])) {
+            return [];
+        }
+
+        $findings = [];
+        $item = [
+            'entity_type' => 'site',
+            'entity_id' => 0,
+            'title' => 'media library',
+            'url' => '',
+        ];
+        $summary = $mediaSeo['summary'];
+
+        $missingAlt = (int)($summary['missing_alt_count'] ?? 0);
+        if ($missingAlt >= 5) {
+            $findings[] = $this->finding(
+                $item,
+                'media_library_missing_alt',
+                $missingAlt >= 30 ? 'warning' : 'opportunity',
+                'fix_media_alt_text',
+                'Many media library images are missing alt text.',
+                [
+                    'missing_alt_count' => $missingAlt,
+                    'samples' => array_slice($mediaSeo['missing_alt'] ?? [], 0, 8),
+                    'in_content_images_missing_alt' => $summary['in_content_images_missing_alt'] ?? 0,
+                ]
+            );
+        }
+
+        $oversized = (int)($summary['oversized_count'] ?? 0);
+        if ($oversized >= 3) {
+            $findings[] = $this->finding(
+                $item,
+                'oversized_images',
+                'opportunity',
+                'compress_oversized_images',
+                'Media library has oversized images (heuristic filesize threshold).',
+                [
+                    'oversized_count' => $oversized,
+                    'threshold_bytes' => $mediaSeo['thresholds']['oversize_bytes'] ?? null,
+                    'samples' => array_slice($mediaSeo['oversized'] ?? [], 0, 8),
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditContentDuplicates(array $dupes): array
+    {
+        if ($dupes === [] || empty($dupes['content_duplicates'])) {
+            return [];
+        }
+
+        $findings = [];
+        foreach (array_slice($dupes['content_duplicates'], 0, 25) as $group) {
+            $entities = $group['entities'] ?? [];
+            if (count($entities) < 2) {
+                continue;
+            }
+            foreach ($entities as $ent) {
+                $findings[] = $this->finding(
+                    [
+                        'entity_type' => (string)($ent['entity_type'] ?? 'unknown'),
+                        'entity_id' => (int)($ent['entity_id'] ?? 0),
+                        'title' => (string)($ent['title'] ?? ''),
+                        'url' => (string)($ent['url'] ?? ''),
+                    ],
+                    'near_duplicate_content',
+                    'warning',
+                    'rewrite_or_consolidate_duplicate_content',
+                    'Normalized content fingerprint matches other published URLs.',
+                    [
+                        'fingerprint' => $group['fingerprint'] ?? '',
+                        'duplicate_count' => $group['count'] ?? count($entities),
+                        'competing_urls' => array_values(array_filter(array_map(
+                            static fn(array $e): string => (string)($e['url'] ?? ''),
+                            $entities
+                        ), static fn(string $u): bool => $u !== (string)($ent['url'] ?? ''))),
+                    ]
+                );
+            }
         }
 
         return $findings;

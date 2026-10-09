@@ -22,7 +22,10 @@ class AiContextBuilder
         array $keywordMap = [],
         array $auditDiff = [],
         array $redirectMap = [],
-        array $hreflang = []
+        array $hreflang = [],
+        array $sitemapCoverage = [],
+        array $mediaSeo = [],
+        array $contentDuplicates = []
     ): array {
         $profile = $brain['site_profile'] ?? [];
         $linkSummary = $brain['link_analysis']['summary'] ?? [];
@@ -31,7 +34,7 @@ class AiContextBuilder
         $top = array_slice($scored, 0, self::MAX_TOP_FINDINGS);
 
         return [
-            'version' => '2.1',
+            'version' => '2.2',
             'generated_at' => function_exists('current_time')
                 ? current_time('mysql')
                 : date('Y-m-d H:i:s'),
@@ -42,6 +45,9 @@ class AiContextBuilder
                 'progress' => 'Use audit_diff for before/after (resolved vs added findings)',
                 'keywords' => 'Use keyword_intelligence for inventory, gaps, and suggested primaries',
                 'redirects' => 'Use redirect_map for chains/loops; hreflang.json for multilingual',
+                'sitemap' => 'Use sitemap_coverage for export vs sitemap gaps',
+                'media' => 'Use media_seo for alt/oversized library issues',
+                'duplicates' => 'Use content_duplicates for near-duplicate bodies/titles',
                 'one_url' => 'Look up url_index, then open that entity in knowledge.json',
                 'internal_linking' => 'Use internal_link_graph.json / site_brain.link_analysis.link_opportunities',
                 'ignore' => 'Ignore Rank Math/Yoast vanity scores if they appear anywhere',
@@ -59,6 +65,9 @@ class AiContextBuilder
             'audit_diff_summary' => $this->summarizeDiff($auditDiff),
             'redirect_summary' => $this->summarizeRedirects($redirectMap),
             'hreflang_summary' => $this->summarizeHreflang($hreflang),
+            'sitemap_coverage_summary' => $sitemapCoverage['summary'] ?? ['enabled' => false],
+            'media_seo_summary' => $mediaSeo['summary'] ?? ['enabled' => false],
+            'content_duplicates_summary' => $contentDuplicates['summary'] ?? ['enabled' => false],
             'seo_audit' => [
                 'summary' => $audit['summary'] ?? [
                     'critical' => 0,
@@ -85,6 +94,9 @@ class AiContextBuilder
                 'keyword_map' => 'json/keyword_map.json',
                 'redirect_map' => 'json/redirect_map.json',
                 'hreflang' => 'json/hreflang.json',
+                'sitemap_coverage' => 'json/sitemap_coverage.json',
+                'media_seo' => 'json/media_seo.json',
+                'content_duplicates' => 'json/content_duplicates.json',
                 'site_brain' => 'json/site_brain.json',
                 'internal_link_graph' => 'json/internal_link_graph.json',
                 'knowledge' => 'json/knowledge.json',

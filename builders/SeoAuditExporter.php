@@ -21,14 +21,20 @@ class SeoAuditExporter
         array $brain = [],
         array $keywordMap = [],
         array $redirectMap = [],
-        array $hreflang = []
+        array $hreflang = [],
+        array $sitemapCoverage = [],
+        array $mediaSeo = [],
+        array $contentDuplicates = []
     ): array {
         $audit = (new SeoAuditBuilder())->build(
             $knowledge,
             $brain,
             $keywordMap,
             $redirectMap,
-            $hreflang
+            $hreflang,
+            $sitemapCoverage,
+            $mediaSeo,
+            $contentDuplicates
         );
 
         $this->json->write('seo_audit.json', $audit);

@@ -80,6 +80,12 @@ require_once AI_EXPORTER_ROOT.'/builders/HreflangBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/HreflangExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/AuditDiffBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/AuditDiffExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/SitemapCoverageBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/SitemapCoverageExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/MediaSeoBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/MediaSeoExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/DuplicateContentBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/DuplicateContentExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/AiContextBuilder.php';
@@ -157,6 +163,24 @@ try {
         $hreflang = (new HreflangExporter($config))->export($knowledge);
     }
 
+    $sitemapCoverage = [];
+    if (!empty($config['export']['sitemap_coverage'])) {
+        $sitemapCoverage = (new SitemapCoverageExporter($config))->export(
+            $knowledge,
+            $siteProfile
+        );
+    }
+
+    $mediaSeo = [];
+    if (!empty($config['export']['media_seo'])) {
+        $mediaSeo = (new MediaSeoExporter($config))->export($knowledge);
+    }
+
+    $contentDuplicates = [];
+    if (!empty($config['export']['content_duplicates'])) {
+        $contentDuplicates = (new DuplicateContentExporter($config))->export($knowledge);
+    }
+
     $auditDiffExporter = new AuditDiffExporter($config);
     $previousAudit = !empty($config['export']['audit_diff'])
         ? $auditDiffExporter->loadPreviousAudit()
@@ -167,7 +191,10 @@ try {
         $brain,
         $keywordMap,
         $redirectMap,
-        $hreflang
+        $hreflang,
+        $sitemapCoverage,
+        $mediaSeo,
+        $contentDuplicates
     );
     $auditSummary = $audit['summary'] ?? [];
 
@@ -185,6 +212,9 @@ try {
         'keyword_map' => 'json/keyword_map.json',
         'redirect_map' => 'json/redirect_map.json',
         'hreflang' => 'json/hreflang.json',
+        'sitemap_coverage' => 'json/sitemap_coverage.json',
+        'media_seo' => 'json/media_seo.json',
+        'content_duplicates' => 'json/content_duplicates.json',
         'seo_audit' => 'json/seo_audit.json',
         'audit_diff' => 'json/audit_diff.json',
         'manifest' => 'json/manifest.json',
@@ -200,7 +230,10 @@ try {
             $keywordMap,
             $auditDiff,
             $redirectMap,
-            $hreflang
+            $hreflang,
+            $sitemapCoverage,
+            $mediaSeo,
+            $contentDuplicates
         );
     }
 
@@ -233,6 +266,9 @@ try {
         'keyword_map' => $keywordMap['summary'] ?? [],
         'redirect_map' => $redirectMap['summary'] ?? [],
         'hreflang' => $hreflang['summary'] ?? [],
+        'sitemap_coverage' => $sitemapCoverage['summary'] ?? [],
+        'media_seo' => $mediaSeo['summary'] ?? [],
+        'content_duplicates' => $contentDuplicates['summary'] ?? [],
         'audit_diff' => $auditDiff['summary'] ?? [],
         'seo_audit' => $auditSummary,
         'ai_context' => [
@@ -278,6 +314,21 @@ try {
             'name' => 'hreflang.json',
             'href' => 'output/json/hreflang.json',
             'description' => 'Polylang/WPML language + translation pairs',
+        ],
+        [
+            'name' => 'sitemap_coverage.json',
+            'href' => 'output/json/sitemap_coverage.json',
+            'description' => 'Sitemap XML vs exported URL coverage gaps',
+        ],
+        [
+            'name' => 'media_seo.json',
+            'href' => 'output/json/media_seo.json',
+            'description' => 'Media library alt / oversized / dimension issues',
+        ],
+        [
+            'name' => 'content_duplicates.json',
+            'href' => 'output/json/content_duplicates.json',
+            'description' => 'Near-duplicate content and title groups',
         ],
         [
             'name' => 'seo_audit.json',
