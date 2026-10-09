@@ -33,7 +33,7 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 |------|----------|---------------|
 | **`manifest.json`** | Run summary, counts, audit/link summaries, `site_profile` summary, file index | Quick overview before exec reports |
 | **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps, special pages, SEO plugins; WP/theme versions as technical context only | Site-level crawlability / “is the site noindexed?” |
-| **`seo_audit.json`** | Findings with severity + `ai_action` | Priorities and actionable issues |
+| **`seo_audit.json`** | Findings with severity + `ai_action` (heuristics, not Google scores). Includes site visibility, canonical, title/desc length, large empty categories, duplicate short descriptions, unresolved links | Priorities and actionable issues |
 | **`knowledge.json`** | Full entities with content/structure/seo | One URL rewrite, FAQ, reviews |
 | **`site_brain.json`** | Stats, clusters, graph, navigation, link_analysis, site_profile, light entity_index | Strategy, IA, navigation |
 | **`internal_link_graph.json`** | Orphans / hubs / unresolved links / duplicate anchors | Internal linking |

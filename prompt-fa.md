@@ -35,7 +35,7 @@
 |------|---------|----------------|
 | **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link، خلاصه `site_profile`، ایندکس فایل‌ها | overview سریع، قبل از گزارش مدیریتی |
 | **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps، صفحات ویژه (home/shop/...)، پلاگین سئو؛ نسخه WP/قالب فقط به‌عنوان technical context | technical SEO سطح‌سایت، crawlability، «سایت noindex است؟» |
-| **`seo_audit.json`** | findings با severity و `ai_action` | اولویت کار، Sprint، مشکلات قابل‌اجرا |
+| **`seo_audit.json`** | findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست). شامل visibility سایت، canonical، طول title/desc، دسته‌های بزرگ خالی، short_desc تکراری، unresolved links | اولویت کار، Sprint، مشکلات قابل‌اجرا |
 | **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo | جزئیات یک URL، بازنویسی، FAQ، نظرات |
 | **`site_brain.json`** | آمار، clusters، graph، navigation، link_analysis، site_profile، entity_index سبک | استراتژی، IA، ناوبری |
 | **`internal_link_graph.json`** | orphan / hub / unresolved links / duplicate anchors | لینک‌سازی داخلی |

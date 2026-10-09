@@ -9,28 +9,39 @@ class SeoAuditBuilder
     private const MIN_INTERNAL_LINKS_FOR_LONG = 2;
     private const THIN_CATEGORY_MAX_COUNT = 3;
     private const KEY_PRODUCT_MIN_WORDS = 150;
+    private const TITLE_MIN_CHARS = 30;
+    private const TITLE_MAX_CHARS = 65;
+    private const DESC_MIN_CHARS = 70;
+    private const DESC_MAX_CHARS = 160;
 
     public function build(array $knowledge, array $brain = []): array
     {
         $findings = [];
 
         $urlables = $this->collectUrlables($knowledge);
+        $siteProfile = $brain['site_profile'] ?? [];
 
         $findings = array_merge(
             $findings,
+            $this->auditSiteVisibility($siteProfile),
             $this->auditMissingSeoFields($urlables),
+            $this->auditSeoFieldLengths($urlables),
+            $this->auditCanonicals($urlables),
             $this->auditDuplicateSeoFields($urlables),
             $this->auditKeywordCannibalization($urlables),
             $this->auditHeadingStructure($urlables),
             $this->auditProductMedia($knowledge['products'] ?? []),
             $this->auditThinCategories($knowledge['categories'] ?? []),
+            $this->auditCategoryContentGaps($knowledge['categories'] ?? []),
+            $this->auditDuplicateShortDescriptions($knowledge['products'] ?? []),
             $this->auditStalePosts($knowledge['posts'] ?? []),
             $this->auditOrphans($brain),
+            $this->auditSpecialPageDiscoverability($brain, $siteProfile),
             $this->auditWeakInternalLinks($urlables, $brain),
-            $this->auditUnexpectedNoindex($urlables),
+            $this->auditUnexpectedNoindex($urlables, $siteProfile),
             $this->auditProductIdentifiers($knowledge['products'] ?? []),
             $this->auditProductReviews($knowledge['products'] ?? []),
-            $this->auditDeadLinks($brain),
+            $this->auditUnresolvedInternalLinks($brain),
             $this->auditWeakHubs($brain)
         );
 
@@ -76,10 +87,11 @@ class SeoAuditBuilder
         }
 
         return [
-            'version' => '1.0',
+            'version' => '1.1',
             'generated_at' => function_exists('current_time')
                 ? current_time('mysql')
                 : date('Y-m-d H:i:s'),
+            'note' => 'Findings are evidence-based heuristics for AI workflows, not Google ranking scores.',
             'summary' => $summary,
             'findings' => $findings,
             'indexes' => [
@@ -162,6 +174,40 @@ class SeoAuditBuilder
      * @param list<array<string,mixed>> $items
      * @return list<array<string,mixed>>
      */
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditSiteVisibility(array $siteProfile): array
+    {
+        $visible = $siteProfile['crawl']['search_engine_visibility'] ?? null;
+        $blogPublic = (string)($siteProfile['crawl']['blog_public'] ?? '');
+
+        if ($visible === true || ($visible === null && $blogPublic !== '0')) {
+            return [];
+        }
+
+        $item = [
+            'entity_type' => 'site',
+            'entity_id' => 0,
+            'title' => (string)($siteProfile['identity']['name'] ?? 'site'),
+            'url' => (string)($siteProfile['identity']['url'] ?? ''),
+        ];
+
+        return [
+            $this->finding(
+                $item,
+                'site_discourages_search_engines',
+                'critical',
+                'enable_search_engine_visibility',
+                'WordPress is set to discourage search engines (blog_public=0). Fix this before other SEO work.',
+                [
+                    'blog_public' => $blogPublic !== '' ? $blogPublic : '0',
+                    'search_engine_visibility' => false,
+                ]
+            ),
+        ];
+    }
+
     private function auditMissingSeoFields(array $items): array
     {
         $findings = [];
@@ -169,6 +215,8 @@ class SeoAuditBuilder
         foreach ($items as $item) {
             $seoTitle = trim((string)($item['seo']['title'] ?? ''));
             $seoDesc = trim((string)($item['seo']['description'] ?? ''));
+            $resolvedTitle = trim((string)($item['seo']['resolved_title'] ?? ''));
+            $resolvedDesc = trim((string)($item['seo']['resolved_description'] ?? ''));
 
             if ($seoTitle === '') {
                 $findings[] = $this->finding(
@@ -176,8 +224,14 @@ class SeoAuditBuilder
                     'missing_seo_title',
                     'warning',
                     'generate_title',
-                    'SEO title is missing.',
-                    ['seo_title' => $seoTitle]
+                    $resolvedTitle !== ''
+                        ? 'Plugin SEO title is empty; WordPress/theme fallback title exists as resolved_title.'
+                        : 'SEO title is missing and no fallback title was resolved.',
+                    [
+                        'seo_title' => $seoTitle,
+                        'resolved_title' => $resolvedTitle,
+                        'has_fallback_title' => $resolvedTitle !== '',
+                    ]
                 );
             }
 
@@ -187,8 +241,125 @@ class SeoAuditBuilder
                     'missing_meta_description',
                     'warning',
                     'generate_meta_description',
-                    'Meta description is missing.',
-                    ['seo_description' => $seoDesc]
+                    $resolvedDesc !== ''
+                        ? 'Plugin meta description is empty; a fallback resolved_description exists.'
+                        : 'Meta description is missing and no fallback was resolved.',
+                    [
+                        'seo_description' => $seoDesc,
+                        'resolved_description' => $resolvedDesc,
+                        'has_fallback_description' => $resolvedDesc !== '',
+                    ]
+                );
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    private function auditSeoFieldLengths(array $items): array
+    {
+        $findings = [];
+
+        foreach ($items as $item) {
+            $title = trim((string)($item['seo']['resolved_title'] ?? $item['seo']['title'] ?? ''));
+            $desc = trim((string)($item['seo']['resolved_description'] ?? $item['seo']['description'] ?? ''));
+            $titleLen = $title !== ''
+                ? (int)($item['seo']['title_length'] ?? mb_strlen($title, 'UTF-8'))
+                : 0;
+            $descLen = $desc !== ''
+                ? (int)($item['seo']['description_length'] ?? mb_strlen($desc, 'UTF-8'))
+                : 0;
+
+            if ($title !== '' && ($titleLen < self::TITLE_MIN_CHARS || $titleLen > self::TITLE_MAX_CHARS)) {
+                $findings[] = $this->finding(
+                    $item,
+                    $titleLen < self::TITLE_MIN_CHARS ? 'seo_title_too_short' : 'seo_title_too_long',
+                    'opportunity',
+                    'optimize_title_length',
+                    'Resolved title length is outside the common SERP guidance range (heuristic, not a Google score).',
+                    [
+                        'title_length' => $titleLen,
+                        'recommended_min' => self::TITLE_MIN_CHARS,
+                        'recommended_max' => self::TITLE_MAX_CHARS,
+                        'resolved_title' => $title,
+                    ]
+                );
+            }
+
+            if ($desc !== '' && ($descLen < self::DESC_MIN_CHARS || $descLen > self::DESC_MAX_CHARS)) {
+                $findings[] = $this->finding(
+                    $item,
+                    $descLen < self::DESC_MIN_CHARS ? 'meta_description_too_short' : 'meta_description_too_long',
+                    'opportunity',
+                    'optimize_meta_description_length',
+                    'Resolved meta description length is outside the common SERP guidance range (heuristic).',
+                    [
+                        'description_length' => $descLen,
+                        'recommended_min' => self::DESC_MIN_CHARS,
+                        'recommended_max' => self::DESC_MAX_CHARS,
+                        'resolved_description' => $desc,
+                    ]
+                );
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    private function auditCanonicals(array $items): array
+    {
+        $findings = [];
+
+        foreach ($items as $item) {
+            if (($item['entity_type'] ?? '') === 'category') {
+                // Term canonical empty is common; only flag mismatch when set.
+            }
+
+            $canonical = trim((string)($item['seo']['canonical'] ?? ''));
+            $url = trim((string)($item['url'] ?? ''));
+
+            if ($canonical === '') {
+                if (($item['entity_type'] ?? '') === 'category') {
+                    continue;
+                }
+
+                $findings[] = $this->finding(
+                    $item,
+                    'missing_canonical',
+                    'opportunity',
+                    'set_canonical',
+                    'Explicit canonical is empty; confirm the theme/plugin emits a self-referencing canonical.',
+                    [
+                        'canonical' => '',
+                        'permalink' => $url,
+                    ]
+                );
+                continue;
+            }
+
+            if ($url === '') {
+                continue;
+            }
+
+            if ($this->normalizeUrl($canonical) !== $this->normalizeUrl($url)) {
+                $findings[] = $this->finding(
+                    $item,
+                    'canonical_mismatch',
+                    'warning',
+                    'review_canonical',
+                    'Canonical URL differs from the entity permalink.',
+                    [
+                        'canonical' => $canonical,
+                        'permalink' => $url,
+                    ]
                 );
             }
         }
@@ -458,28 +629,142 @@ class SeoAuditBuilder
             $description = trim((string)($category['content']['description'] ?? ''));
             $wordCount = (int)($category['content']['word_count'] ?? 0);
 
-            if ($count > self::THIN_CATEGORY_MAX_COUNT && $description !== '') {
+            if ($count > self::THIN_CATEGORY_MAX_COUNT) {
                 continue;
             }
 
-            if ($count <= self::THIN_CATEGORY_MAX_COUNT && ($description === '' || $wordCount < 40)) {
-                $item = [
-                    'entity_type' => 'category',
-                    'entity_id' => (int)($category['basic']['id'] ?? 0),
-                    'title' => (string)($category['basic']['name'] ?? ''),
-                    'url' => (string)($category['basic']['url'] ?? ''),
-                ];
+            if ($description !== '' && $wordCount >= 40) {
+                continue;
+            }
 
+            $item = [
+                'entity_type' => 'category',
+                'entity_id' => (int)($category['basic']['id'] ?? 0),
+                'title' => (string)($category['basic']['name'] ?? ''),
+                'url' => (string)($category['basic']['url'] ?? ''),
+            ];
+
+            $findings[] = $this->finding(
+                $item,
+                'thin_category',
+                'warning',
+                'expand_category_description',
+                'Category looks thin (few products and weak/empty description).',
+                [
+                    'product_count' => $count,
+                    'word_count' => $wordCount,
+                    'description_empty' => $description === '',
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * Large categories with empty/weak copy — previously skipped by thin_category.
+     *
+     * @param list<array<string,mixed>> $categories
+     * @return list<array<string,mixed>>
+     */
+    private function auditCategoryContentGaps(array $categories): array
+    {
+        $findings = [];
+
+        foreach ($categories as $category) {
+            $count = (int)($category['basic']['count'] ?? 0);
+            $description = trim((string)($category['content']['description'] ?? ''));
+            $wordCount = (int)($category['content']['word_count'] ?? 0);
+            $seoTitle = trim((string)($category['seo']['title'] ?? ''));
+
+            if ($count <= self::THIN_CATEGORY_MAX_COUNT) {
+                continue;
+            }
+
+            $item = [
+                'entity_type' => 'category',
+                'entity_id' => (int)($category['basic']['id'] ?? 0),
+                'title' => (string)($category['basic']['name'] ?? ''),
+                'url' => (string)($category['basic']['url'] ?? ''),
+            ];
+
+            if ($description === '' || $wordCount < 40) {
                 $findings[] = $this->finding(
                     $item,
-                    'thin_category',
+                    'large_category_empty_description',
                     'warning',
                     'expand_category_description',
-                    'Category looks thin (few products and/or empty description).',
+                    'Category has meaningful product volume but weak/empty description content.',
                     [
                         'product_count' => $count,
                         'word_count' => $wordCount,
                         'description_empty' => $description === '',
+                    ]
+                );
+            }
+
+            if ($seoTitle === '') {
+                $findings[] = $this->finding(
+                    $item,
+                    'category_missing_seo_title',
+                    'opportunity',
+                    'generate_title',
+                    'Important category is missing an explicit SEO title.',
+                    [
+                        'product_count' => $count,
+                        'resolved_title' => (string)($category['seo']['resolved_title'] ?? ''),
+                    ]
+                );
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $products
+     * @return list<array<string,mixed>>
+     */
+    private function auditDuplicateShortDescriptions(array $products): array
+    {
+        $byShort = [];
+
+        foreach ($products as $product) {
+            $status = (string)($product['basic']['status'] ?? '');
+            if ($status !== '' && $status !== 'publish') {
+                continue;
+            }
+
+            $short = mb_strtolower(trim((string)($product['content']['short_description'] ?? '')));
+            if ($short === '' || mb_strlen($short, 'UTF-8') < 20) {
+                continue;
+            }
+
+            $byShort[$short][] = $product;
+        }
+
+        $findings = [];
+
+        foreach ($byShort as $short => $group) {
+            if (count($group) < 2) {
+                continue;
+            }
+
+            foreach ($group as $product) {
+                $item = $this->productAsItem($product);
+                $findings[] = $this->finding(
+                    $item,
+                    'duplicate_product_short_description',
+                    'warning',
+                    'rewrite_product_short_description',
+                    'Product short description is duplicated across multiple products.',
+                    [
+                        'duplicate_count' => count($group),
+                        'competing_urls' => $this->otherUrls(
+                            array_map(fn(array $p): array => $this->productAsItem($p), $group),
+                            $item
+                        ),
+                        'short_description_sample' => mb_substr((string)$short, 0, 120, 'UTF-8'),
                     ]
                 );
             }
@@ -583,6 +868,10 @@ class SeoAuditBuilder
         $findings = [];
 
         foreach ($items as $item) {
+            if (($item['entity_type'] ?? '') === 'category') {
+                continue;
+            }
+
             $wordCount = (int)$item['word_count'];
             if ($wordCount < self::LONG_CONTENT_WORDS) {
                 continue;
@@ -616,9 +905,10 @@ class SeoAuditBuilder
      * @param list<array<string,mixed>> $items
      * @return list<array<string,mixed>>
      */
-    private function auditUnexpectedNoindex(array $items): array
+    private function auditUnexpectedNoindex(array $items, array $siteProfile = []): array
     {
         $findings = [];
+        $excludedIds = $this->intentionalNoindexPageIds($siteProfile);
 
         foreach ($items as $item) {
             $index = $item['seo']['robots']['index'] ?? true;
@@ -626,14 +916,119 @@ class SeoAuditBuilder
                 continue;
             }
 
+            $entityId = (int)($item['entity_id'] ?? 0);
+            $entityType = (string)($item['entity_type'] ?? '');
+            $url = strtolower((string)($item['url'] ?? ''));
+            $title = strtolower((string)($item['title'] ?? ''));
+
+            $intentional = isset($excludedIds[$entityId])
+                || preg_match('/(cart|checkout|my-account|myaccount|thank[-_ ]?you|order-received)/u', $url . ' ' . $title);
+
+            if ($intentional || $entityType === 'category') {
+                $findings[] = $this->finding(
+                    $item,
+                    'intentional_noindex_candidate',
+                    'opportunity',
+                    'confirm_noindex_intent',
+                    'URL is noindex; this often looks intentional (Woo utility/thank-you/account). Confirm before changing.',
+                    [
+                        'robots' => $item['seo']['robots'] ?? [],
+                        'likely_intentional' => true,
+                    ]
+                );
+                continue;
+            }
+
             $findings[] = $this->finding(
                 $item,
                 'unexpected_noindex',
-                'critical',
+                'warning',
                 'review_robots_directives',
-                'Published URL is marked noindex.',
+                'Published URL is marked noindex. Review whether this is intentional.',
                 [
                     'robots' => $item['seo']['robots'] ?? [],
+                    'likely_intentional' => false,
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return array<int,true>
+     */
+    private function intentionalNoindexPageIds(array $siteProfile): array
+    {
+        $ids = [];
+        $woo = $siteProfile['special_pages']['woocommerce'] ?? [];
+
+        foreach (['cart', 'checkout', 'myaccount'] as $key) {
+            $id = (int)($woo[$key]['id'] ?? 0);
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditSpecialPageDiscoverability(array $brain, array $siteProfile): array
+    {
+        $findings = [];
+        $nodesById = [];
+
+        foreach ($brain['knowledge_graph']['internal_link_graph']['nodes'] ?? [] as $node) {
+            $nodesById[(int)($node['id'] ?? 0)] = $node;
+        }
+
+        $candidates = [];
+        $front = $siteProfile['special_pages']['front_page'] ?? null;
+        $shop = $siteProfile['special_pages']['woocommerce']['shop'] ?? null;
+
+        if (is_array($front) && (int)($front['id'] ?? 0) > 0) {
+            $candidates[] = ['role' => 'front_page', 'page' => $front];
+        }
+        if (is_array($shop) && (int)($shop['id'] ?? 0) > 0) {
+            $candidates[] = ['role' => 'shop', 'page' => $shop];
+        }
+
+        foreach ($candidates as $candidate) {
+            $page = $candidate['page'];
+            $id = (int)$page['id'];
+            $node = $nodesById[$id] ?? null;
+            if ($node === null) {
+                continue;
+            }
+
+            $inMenu = !empty($node['in_menu']);
+            $isOrphan = !empty($node['is_orphan']);
+
+            if ($inMenu && !$isOrphan) {
+                continue;
+            }
+
+            $item = [
+                'entity_type' => (string)($node['entity_type'] ?? 'page'),
+                'entity_id' => $id,
+                'title' => (string)($page['title'] ?? $node['title'] ?? ''),
+                'url' => (string)($page['url'] ?? $node['url'] ?? ''),
+            ];
+
+            $findings[] = $this->finding(
+                $item,
+                'important_page_low_discoverability',
+                'warning',
+                'add_to_navigation_or_internal_links',
+                'Important site page (home/shop) looks hard to discover via menus/internal links.',
+                [
+                    'role' => $candidate['role'],
+                    'in_menu' => $inMenu,
+                    'is_orphan' => $isOrphan,
+                    'incoming_count' => (int)($node['incoming_count'] ?? 0),
                 ]
             );
         }
@@ -733,39 +1128,66 @@ class SeoAuditBuilder
     /**
      * @return list<array<string,mixed>>
      */
-    private function auditDeadLinks(array $brain): array
+    private function auditUnresolvedInternalLinks(array $brain): array
     {
         $findings = [];
-        $bySource = [];
+        $bySourceReason = [];
 
         foreach ($brain['link_analysis']['dead_internal_links'] ?? [] as $dead) {
             $sourceId = (int)($dead['source_id'] ?? 0);
             if ($sourceId <= 0) {
                 continue;
             }
-            $bySource[$sourceId][] = $dead;
+
+            $reason = (string)($dead['reason'] ?? 'unresolved_target');
+            $bucket = $reason === 'missing_target_entity'
+                ? 'missing_target_entity'
+                : 'unresolved_target';
+
+            $bySourceReason[$sourceId][$bucket][] = $dead;
         }
 
-        foreach ($bySource as $sourceId => $links) {
-            $first = $links[0];
-            $item = [
-                'entity_type' => (string)($first['source_type'] ?? 'unknown'),
-                'entity_id' => $sourceId,
-                'title' => '',
-                'url' => (string)($first['source_url'] ?? ''),
-            ];
+        foreach ($bySourceReason as $sourceId => $groups) {
+            foreach ($groups as $bucket => $links) {
+                $first = $links[0];
+                $item = [
+                    'entity_type' => (string)($first['source_type'] ?? 'unknown'),
+                    'entity_id' => $sourceId,
+                    'title' => '',
+                    'url' => (string)($first['source_url'] ?? ''),
+                ];
 
-            $findings[] = $this->finding(
-                $item,
-                'dead_internal_links',
-                'warning',
-                'fix_dead_internal_links',
-                'Page contains dead or unresolved internal links.',
-                [
-                    'dead_count' => count($links),
-                    'samples' => array_slice($links, 0, 5),
-                ]
-            );
+                if ($bucket === 'missing_target_entity') {
+                    $findings[] = $this->finding(
+                        $item,
+                        'missing_internal_link_target',
+                        'warning',
+                        'fix_broken_internal_links',
+                        'Page links to an internal target id that is not present in the exported published set.',
+                        [
+                            'link_count' => count($links),
+                            'reason' => 'missing_target_entity',
+                            'samples' => array_slice($links, 0, 5),
+                            'note' => 'This is not a confirmed HTTP 404; verify before deleting links.',
+                        ]
+                    );
+                    continue;
+                }
+
+                $findings[] = $this->finding(
+                    $item,
+                    'unresolved_internal_target',
+                    'opportunity',
+                    'review_unresolved_internal_links',
+                    'Page has internal URLs that could not be resolved to a post/page id (archives, filters, or non-exported URLs are common).',
+                    [
+                        'link_count' => count($links),
+                        'reason' => 'unresolved_target',
+                        'samples' => array_slice($links, 0, 5),
+                        'note' => 'Do not treat these as proven 404s without a crawl/HTTP check.',
+                    ]
+                );
+            }
         }
 
         return $findings;
@@ -810,6 +1232,29 @@ class SeoAuditBuilder
             'title' => (string)($product['basic']['title'] ?? ''),
             'url' => (string)($product['basic']['url'] ?? ''),
         ];
+    }
+
+    private function normalizeUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (function_exists('home_url') && str_starts_with($url, '/')) {
+            $url = home_url($url);
+        }
+
+        $parts = wp_parse_url($url);
+        if (!is_array($parts)) {
+            return rtrim(strtolower($url), '/');
+        }
+
+        $host = strtolower((string)($parts['host'] ?? ''));
+        $path = (string)($parts['path'] ?? '/');
+        $query = isset($parts['query']) ? ('?' . $parts['query']) : '';
+
+        return rtrim($host . $path, '/') . $query;
     }
 
     /**
