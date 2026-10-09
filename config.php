@@ -10,7 +10,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'version' => '3.0.0',
+    'version' => '3.1.0',
 
     /*
     |--------------------------------------------------------------------------
@@ -75,6 +75,20 @@ return [
     */
 
     'gsc_csv' => '',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Content render mode (for structure + JSON-LD detection)
+    |--------------------------------------------------------------------------
+    | off          — use raw post_content only
+    | blocks       — do_blocks + shortcodes (default; safe for most hosts)
+    | the_content  — full apply_filters('the_content') (heavier; more accurate for shortcodes)
+    |
+    | Elementor and similar builders that store layout only in post meta are NOT
+    | fully rendered — headings/links inside those layouts may still be missing.
+    */
+
+    'content_render' => 'blocks',
 
     /*
     |--------------------------------------------------------------------------

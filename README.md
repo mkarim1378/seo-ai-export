@@ -146,8 +146,21 @@ input/                   ← اختیاری
 
 - `structure.headings` / `internal_links` / `external_links` / `faq_candidates`
 - متریک متن فارسی: `word_count`, `sentence_count`, `char_count`
-- `seo.*` نرمال Yoast/Rank Math + `sources`
-- محصول: `identifiers`, `variations`, `reviews`, `breadcrumb`
+- `seo.*` نرمال Yoast/Rank Math + `sources` + `schema_detected` / `schema_claimed_only`
+- `structure.content_render` — حالت رندر (`blocks` / `the_content` / raw)
+- محصول: `identifiers`, `variations`, `reviews`, `breadcrumb`, `total_sales`
+
+### رندر محتوا و محدودیت Elementor
+
+در `config.php` فلگ `content_render` را تنظیم کن:
+
+| مقدار | رفتار |
+|--------|--------|
+| `blocks` (پیش‌فرض) | `do_blocks` + shortcode — مناسب اکثر سایت‌های Gutenberg |
+| `the_content` | فیلتر کامل وردپرس (سنگین‌تر، دقیق‌تر برای شورت‌کدها) |
+| `off` | فقط `post_content` خام |
+
+**محدودیت:** صفحه‌سازهایی مثل Elementor که لایه‌بندی را فقط در post meta نگه می‌دارند در این pipeline رندر نمی‌شوند؛ هدینگ/لینک داخل آن لایه‌ها ممکن است دیده نشود.
 
 ---
 
@@ -340,6 +353,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 5. ~~`keyword_map.json` + coverage + پیشنهاد کیورد on-site (+ GSC CSV اختیاری)~~
 6. ~~impact_score / next_actions در `ai_context` + خوشه‌های pillar-aware~~
 7. ~~commerce schema essentials + sales-weighted + seo_plugin_globals~~
+8. ~~رندر `do_blocks`/`the_content` + JSON-LD واقعی vs ادعای پلاگین + tag nodes~~
 
 ---
 

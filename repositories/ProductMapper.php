@@ -6,25 +6,62 @@ class ProductMapper
 {
     private ContentStructureExtractor $structureExtractor;
     private SeoMetaExtractor $seoMetaExtractor;
+    private ContentPipeline $pipeline;
 
     public function __construct()
     {
         $this->structureExtractor = new ContentStructureExtractor();
         $this->seoMetaExtractor = new SeoMetaExtractor();
+        $this->pipeline = new ContentPipeline();
     }
 
     public function map(WC_Product $product): array
     {
         $rawDescription = (string) $product->get_description();
         $rawShort = (string) $product->get_short_description();
+        $post = get_post($product->get_id());
+        $wpPost = $post instanceof WP_Post ? $post : null;
+
+        $seo = $this->seoMetaExtractor->forPost(
+            $product->get_id(),
+            'product_cat',
+            [
+                'title' => $product->get_name(),
+                'description' => ai_clean_text((string)$product->get_short_description()),
+            ]
+        );
+
+        $mode = ContentPipeline::modeFromConfig();
+        $shortProcessed = $this->pipeline->process($rawShort, $seo, $wpPost, $mode);
+        // Re-run description with SEO already enriched from short; merge structure + prefer description schema
+        $descProcessed = $this->pipeline->process(
+            $rawDescription,
+            $shortProcessed['seo'],
+            $wpPost,
+            $mode
+        );
+
+        $structure = $this->structureExtractor->merge(
+            $shortProcessed['structure'],
+            $descProcessed['structure']
+        );
+        $structure['content_render'] = $descProcessed['content_render'] ?? $shortProcessed['content_render'] ?? null;
+
+        // WooCommerce typically injects Product JSON-LD on the frontend, not in post_content
+        $seoOut = $descProcessed['seo'];
+        if (
+            empty($seoOut['schema_detected'])
+            && class_exists('WooCommerce')
+        ) {
+            $seoOut['schema_woocommerce_inferred'] = true;
+            $seoOut['schema_note'] = ($seoOut['schema_note'] ?? '')
+                . ' WooCommerce usually outputs Product JSON-LD on the live product page; it may not appear in stored description HTML.';
+        }
 
         return [
             'basic' => $this->basic($product),
-            'content' => $this->content($rawDescription, $rawShort),
-            'structure' => $this->structureExtractor->merge(
-                $this->structureExtractor->extract($rawShort),
-                $this->structureExtractor->extract($rawDescription)
-            ),
+            'content' => $this->content($rawDescription, $rawShort, $descProcessed['rendered_html']),
+            'structure' => $structure,
             'pricing' => $this->pricing($product),
             'inventory' => $this->inventory($product),
             'shipping' => $this->shipping($product),
@@ -35,14 +72,7 @@ class ProductMapper
             'reviews' => $this->reviews($product),
             'breadcrumb' => $this->breadcrumb($product),
             'media' => $this->media($product),
-            'seo' => $this->seoMetaExtractor->forPost(
-                $product->get_id(),
-                'product_cat',
-                [
-                    'title' => $product->get_name(),
-                    'description' => ai_clean_text((string)$product->get_short_description()),
-                ]
-            ),
+            'seo' => $seoOut,
             'relations' => $this->relations($product),
             'ratings' => $this->ratings($product),
         ];
@@ -69,9 +99,11 @@ class ProductMapper
         ];
     }
 
-    private function content(string $rawDescription, string $rawShort): array
+    private function content(string $rawDescription, string $rawShort, string $renderedDescription = ''): array
     {
-        $description = ai_clean_text($rawDescription);
+        $description = ai_clean_text(
+            $renderedDescription !== '' ? $renderedDescription : $rawDescription
+        );
         $short = ai_clean_text($rawShort);
         $combined = trim($short . ' ' . $description);
         $metrics = TextMetrics::analyze($combined);
@@ -80,6 +112,7 @@ class ProductMapper
             'short_description' => $short,
             'description' => $description,
             'html_length' => strlen($rawShort) + strlen($rawDescription),
+            'rendered_html_length' => strlen($renderedDescription),
             'word_count' => $metrics['word_count'],
             'sentence_count' => $metrics['sentence_count'],
             'char_count' => $metrics['char_count'],

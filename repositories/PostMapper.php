@@ -4,30 +4,38 @@ declare(strict_types=1);
 
 class PostMapper
 {
-    private ContentStructureExtractor $structureExtractor;
     private SeoMetaExtractor $seoMetaExtractor;
+    private ContentPipeline $pipeline;
 
     public function __construct()
     {
-        $this->structureExtractor = new ContentStructureExtractor();
         $this->seoMetaExtractor = new SeoMetaExtractor();
+        $this->pipeline = new ContentPipeline();
     }
 
     public function map(WP_Post $post): array
     {
         $rawContent = (string) $post->post_content;
+        $seo = $this->seoMetaExtractor->forPost($post->ID, 'category', [
+            'title' => get_the_title($post),
+            'description' => ai_clean_text($post->post_excerpt),
+        ]);
+
+        $processed = $this->pipeline->process(
+            $rawContent,
+            $seo,
+            $post,
+            ContentPipeline::modeFromConfig()
+        );
 
         return [
             'basic' => $this->basic($post),
-            'content' => $this->content($post, $rawContent),
-            'structure' => $this->structureExtractor->extract($rawContent),
+            'content' => $this->content($post, $rawContent, $processed['rendered_html']),
+            'structure' => $processed['structure'],
             'taxonomy' => $this->taxonomy($post),
             'author' => $this->author($post),
             'media' => $this->media($post),
-            'seo' => $this->seoMetaExtractor->forPost($post->ID, 'category', [
-                'title' => get_the_title($post),
-                'description' => ai_clean_text($post->post_excerpt),
-            ]),
+            'seo' => $processed['seo'],
             'custom_fields' => $this->customFields($post),
         ];
     }
@@ -45,15 +53,21 @@ class PostMapper
         ];
     }
 
-    private function content(WP_Post $post, string $rawContent): array
+    private function content(WP_Post $post, string $rawContent, string $renderedHtml): array
     {
-        $plain = ai_clean_text($rawContent);
+        // Metrics from rendered plain text when richer, else raw
+        $plainRendered = ai_clean_text($renderedHtml);
+        $plainRaw = ai_clean_text($rawContent);
+        $plain = mb_strlen($plainRendered, 'UTF-8') >= mb_strlen($plainRaw, 'UTF-8')
+            ? $plainRendered
+            : $plainRaw;
         $metrics = TextMetrics::analyze($plain);
 
         return [
             'excerpt' => ai_clean_text($post->post_excerpt),
             'content' => $plain,
             'html_length' => strlen($rawContent),
+            'rendered_html_length' => strlen($renderedHtml),
             'word_count' => $metrics['word_count'],
             'sentence_count' => $metrics['sentence_count'],
             'char_count' => $metrics['char_count'],

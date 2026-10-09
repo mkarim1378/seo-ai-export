@@ -32,6 +32,7 @@ class SeoAuditBuilder
             $this->auditKeywordCannibalization($urlables, $keywordMap),
             $this->auditKeywordCoverage($urlables),
             $this->auditFaqSchemaGaps($urlables),
+            $this->auditSchemaClaimedOnly($urlables),
             $this->auditHeadingStructure($urlables),
             $this->auditProductMedia($knowledge['products'] ?? []),
             $this->auditThinCategories($knowledge['categories'] ?? []),
@@ -676,8 +677,12 @@ class SeoAuditBuilder
             }
 
             $schema = $item['seo']['schema_types'] ?? [];
+            $detected = $item['seo']['schema_detected'] ?? [];
             $hasFaqSchema = false;
-            foreach ($schema as $type) {
+            foreach (array_merge(
+                is_array($schema) ? $schema : [],
+                is_array($detected) ? $detected : []
+            ) as $type) {
                 if (stripos((string)$type, 'faq') !== false) {
                     $hasFaqSchema = true;
                     break;
@@ -693,11 +698,67 @@ class SeoAuditBuilder
                 'faq_candidates_without_schema',
                 'opportunity',
                 'add_faq_schema',
-                'Content has FAQ-like blocks but no FAQ schema type is declared in plugin meta.',
+                'Content has FAQ-like blocks but no FAQ schema type is declared or detected in JSON-LD.',
                 [
                     'faq_candidate_count' => count($faqs),
                     'schema_types' => $schema,
-                    'note' => 'schema_types reflects plugin claims, not necessarily rendered JSON-LD.',
+                    'schema_detected' => $detected,
+                    'note' => 'schema_types = plugin claims; schema_detected = JSON-LD found in stored/rendered HTML.',
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * Plugin claims schema types but no matching JSON-LD found in content HTML.
+     *
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    private function auditSchemaClaimedOnly(array $items): array
+    {
+        $findings = [];
+
+        foreach ($items as $item) {
+            if (($item['entity_type'] ?? '') === 'category') {
+                continue;
+            }
+
+            // Products often get schema from Woo on the live page only
+            if (($item['entity_type'] ?? '') === 'product'
+                && !empty($item['seo']['schema_woocommerce_inferred'])
+            ) {
+                continue;
+            }
+
+            $claimedOnly = !empty($item['seo']['schema_claimed_only']);
+            $missing = $item['seo']['schema_missing_in_content'] ?? [];
+            $claimed = $item['seo']['schema_types'] ?? [];
+
+            if (!$claimedOnly && (!is_array($missing) || $missing === [])) {
+                continue;
+            }
+
+            if (!is_array($claimed) || $claimed === []) {
+                continue;
+            }
+
+            $findings[] = $this->finding(
+                $item,
+                'schema_claimed_only',
+                'opportunity',
+                'verify_rendered_json_ld',
+                'SEO plugin claims schema type(s) but matching JSON-LD was not found in stored/rendered post HTML.',
+                [
+                    'schema_types' => $claimed,
+                    'schema_detected' => $item['seo']['schema_detected'] ?? [],
+                    'missing_in_content' => $missing,
+                    'schema_claimed_only' => $claimedOnly,
+                    'content_render' => $item['structure']['content_render'] ?? null,
+                    'note' => $item['seo']['schema_note']
+                        ?? 'Not a live page fetch — theme/plugin frontend-only JSON-LD may still exist.',
                 ]
             );
         }

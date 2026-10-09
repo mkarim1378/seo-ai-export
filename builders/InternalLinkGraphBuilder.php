@@ -178,6 +178,55 @@ class InternalLinkGraphBuilder
             );
         }
 
+        // Lightweight tag archive nodes so tag URLs resolve instead of false "dead" links
+        $seenTags = [];
+        foreach (['posts', 'products'] as $bucket) {
+            foreach ($knowledge[$bucket] ?? [] as $entity) {
+                foreach ($entity['taxonomy']['tags'] ?? [] as $tag) {
+                    if (!is_array($tag)) {
+                        continue;
+                    }
+                    $tid = (int)($tag['id'] ?? 0);
+                    if ($tid <= 0 || isset($seenTags[$tid])) {
+                        continue;
+                    }
+                    $seenTags[$tid] = true;
+                    $url = '';
+                    if (function_exists('get_term_link')) {
+                        $tax = $bucket === 'products' ? 'product_tag' : 'post_tag';
+                        $link = get_term_link($tid, $tax);
+                        if (!is_wp_error($link)) {
+                            $url = (string)$link;
+                        }
+                    }
+                    if ($url === '') {
+                        continue;
+                    }
+                    $entities[] = [
+                        'id' => $tid,
+                        'node_key' => $this->nodeKey('tag', $tid),
+                        'entity_type' => 'tag',
+                        'title' => (string)($tag['name'] ?? ''),
+                        'url' => $url,
+                        'status' => 'publish',
+                        'word_count' => 0,
+                        'focus_keyword' => '',
+                        'is_cornerstone' => false,
+                        'categories' => [],
+                        'category_ids' => [],
+                        'outgoing_links' => [],
+                        'outgoing_count' => 0,
+                        'incoming_count' => 0,
+                        'incoming_from' => [],
+                        'in_menu' => false,
+                        'is_orphan' => false,
+                        'is_hub_weak' => false,
+                        'crawl_depth' => null,
+                    ];
+                }
+            }
+        }
+
         return $entities;
     }
 
@@ -444,7 +493,7 @@ class InternalLinkGraphBuilder
             $node['is_orphan'] = $isPublished
                 && (int)$node['incoming_count'] === 0
                 && !$inMenu
-                && $node['entity_type'] !== 'category';
+                && !in_array($node['entity_type'], ['category', 'tag'], true);
 
             $isImportantType = in_array($node['entity_type'], ['post', 'product', 'page'], true);
             $node['is_hub_weak'] = $isImportantType

@@ -44,7 +44,8 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 - Persian-aware text metrics: `word_count` / `sentence_count` / `char_count`, `html_length`
 - `structure`: headings, links, faq_candidates, `images_count` / `images_missing_alt`
-- `seo`: title/description/canonical/focus_keyword, rich robots, `schema_types`, `is_cornerstone`, `resolved_*`, lengths, OG/Twitter, `plugin`/`sources`, **`keyword_coverage`**
+- `seo`: title/description/canonical/focus_keyword, rich robots, `schema_types` (plugin claims), **`schema_detected`** (JSON-LD in HTML), **`schema_claimed_only`**, `keyword_coverage`, `is_cornerstone`, `resolved_*`, lengths, OG/Twitter
+- `structure.content_render`: content render mode (`blocks` / `the_content` / raw) — Elementor meta is not rendered
 - Post author: `published_posts` (light EEAT signal)
 - Product: `identifiers`, `variations`, `reviews`, `breadcrumb`, `total_sales`
 

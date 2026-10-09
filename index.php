@@ -11,7 +11,17 @@ $config = require AI_EXPORTER_ROOT . '/config.php';
 require_once AI_EXPORTER_ROOT . '/helpers.php';
 require_once AI_EXPORTER_ROOT . '/helpers/TextMetrics.php';
 require_once AI_EXPORTER_ROOT . '/helpers/ContentStructureExtractor.php';
+require_once AI_EXPORTER_ROOT . '/helpers/ContentRenderer.php';
+require_once AI_EXPORTER_ROOT . '/helpers/SchemaExtractor.php';
+require_once AI_EXPORTER_ROOT . '/helpers/ContentPipeline.php';
 require_once AI_EXPORTER_ROOT . '/helpers/CustomFieldsFilter.php';
+
+if (!defined('AI_EXPORTER_CONTENT_RENDER')) {
+    define(
+        'AI_EXPORTER_CONTENT_RENDER',
+        (string)($config['content_render'] ?? 'blocks')
+    );
+}
 
 /*
 |--------------------------------------------------------------------------

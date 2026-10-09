@@ -39,8 +39,10 @@ class SiteProfileBuilder
                 'https' => (!empty($parts['scheme']) && strtolower((string)$parts['scheme']) === 'https'),
                 'host' => (string) ($parts['host'] ?? ''),
                 'sitemaps' => $sitemaps,
+                'robots_txt_core' => $this->robotsTxtCore(),
                 'robots_txt' => $this->robotsTxt(),
-                'robots_txt_source' => 'wordpress_robots_txt_filter',
+                'robots_txt_source' => 'core_then_robots_txt_filter',
+                'robots_txt_note' => 'robots_txt_core is WordPress blog_public only; robots_txt includes SEO-plugin/theme filters via robots_txt.',
             ],
             'special_pages' => [
                 'show_on_front' => (string) get_option('show_on_front'),
@@ -104,7 +106,7 @@ class SiteProfileBuilder
         return $code >= 200 && $code < 400;
     }
 
-    private function robotsTxt(): string
+    private function robotsTxtCore(): string
     {
         $public = (string) get_option('blog_public');
         $output = "User-agent: *\n";
@@ -114,6 +116,14 @@ class SiteProfileBuilder
         } else {
             $output .= "Disallow:\n";
         }
+
+        return trim($output);
+    }
+
+    private function robotsTxt(): string
+    {
+        $public = (string) get_option('blog_public');
+        $output = $this->robotsTxtCore() . "\n";
 
         if (function_exists('apply_filters')) {
             $output = (string) apply_filters('robots_txt', $output, $public !== '0');

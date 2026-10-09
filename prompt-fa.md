@@ -46,7 +46,8 @@
 
 - متریک متن فارسی: `word_count` / `sentence_count` / `char_count`، `html_length`
 - `structure`: headings، links، faq_candidates، `images_count` / `images_missing_alt`
-- `seo`: title/description/canonical/focus_keyword، robots، `schema_types`، `is_cornerstone`، `resolved_*`، lengths، OG/Twitter، `plugin`/`sources`، **`keyword_coverage`**
+- `seo`: title/description/canonical/focus_keyword، robots، `schema_types` (ادعای پلاگین)، **`schema_detected`** (JSON-LD در HTML)، **`schema_claimed_only`**، `keyword_coverage`، `is_cornerstone`، `resolved_*`، lengths، OG/Twitter
+- `structure.content_render`: حالت رندر محتوا (`blocks` / `the_content` / raw) — Elementor meta رندر نمی‌شود
 - نویسنده پست: `published_posts` (سیگنال EEAT سبک)
 - محصول: `identifiers`، `variations`، `reviews`، `breadcrumb`، `total_sales`
 
