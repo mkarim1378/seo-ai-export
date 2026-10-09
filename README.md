@@ -28,7 +28,7 @@
 |--------|--------|
 | `knowledge.json` | مرجع کامل موجودیت‌ها برای چت با AI |
 | `seo_audit.json` | لیست مشکلات و فرصت‌های سئو با اولویت و `ai_action` |
-| `site_brain.json` | بسته هوش سایت (آمار، خوشه‌ها، روابط، ناوبری) |
+| `site_brain.json` | بسته هوش سایت (آمار، خوشه‌ها، روابط، ناوبری، `entity_index` سبک) |
 | `internal_link_graph.json` | orphan، weak hub، لینک مرده، انکر تکراری |
 | CSV / Markdown | جداول تخت و فایل‌های متنی per-entity |
 
