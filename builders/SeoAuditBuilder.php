@@ -138,6 +138,23 @@ class SeoAuditBuilder
             }
         }
 
+        foreach ($knowledge['categories'] ?? [] as $entity) {
+            $items[] = [
+                'entity_type' => 'category',
+                'entity_id' => (int)($entity['basic']['id'] ?? 0),
+                'title' => (string)($entity['basic']['name'] ?? ''),
+                'url' => (string)($entity['basic']['url'] ?? ''),
+                'updated_at' => '',
+                'word_count' => (int)($entity['content']['word_count'] ?? 0),
+                'seo' => $entity['seo'] ?? [],
+                'structure' => $entity['structure'] ?? [],
+                'media' => $entity['media'] ?? [],
+                'identifiers' => [],
+                'ratings' => [],
+                'reviews' => [],
+            ];
+        }
+
         return $items;
     }
 
@@ -297,6 +314,11 @@ class SeoAuditBuilder
         $findings = [];
 
         foreach ($items as $item) {
+            // Category archive H1 usually comes from the theme template, not term description HTML.
+            if (($item['entity_type'] ?? '') === 'category') {
+                continue;
+            }
+
             $headings = $item['structure']['headings'] ?? [];
             if (!is_array($headings)) {
                 $headings = [];

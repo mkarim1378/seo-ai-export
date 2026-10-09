@@ -25,6 +25,10 @@ class SiteBrainExporter
 
         $this->json->write('site_brain.json', $brain);
 
+        if (!empty($brain['site_profile'])) {
+            $this->json->write('site_profile.json', $brain['site_profile']);
+        }
+
         $linkGraph = $brain['knowledge_graph']['internal_link_graph'] ?? [];
         $this->linkGraphExporter->export($linkGraph);
 

@@ -37,7 +37,11 @@ class ProductMapper
             'media' => $this->media($product),
             'seo' => $this->seoMetaExtractor->forPost(
                 $product->get_id(),
-                'product_cat'
+                'product_cat',
+                [
+                    'title' => $product->get_name(),
+                    'description' => ai_clean_text((string)$product->get_short_description()),
+                ]
             ),
             'relations' => $this->relations($product),
             'ratings' => $this->ratings($product),

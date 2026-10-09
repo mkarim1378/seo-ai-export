@@ -29,6 +29,8 @@ class ContentStructureExtractor
             $avgParagraphLength = (int) round($totalWords / $paragraphCount);
         }
 
+        $images = $this->extractImages($html);
+
         return [
             'headings' => $headings,
             'internal_links' => $links['internal'],
@@ -38,6 +40,8 @@ class ContentStructureExtractor
             'tables_count' => $this->countTags($html, ['table']),
             'paragraph_count' => $paragraphCount,
             'avg_paragraph_length' => $avgParagraphLength,
+            'images_count' => $images['count'],
+            'images_missing_alt' => $images['missing_alt'],
         ];
     }
 
@@ -74,6 +78,8 @@ class ContentStructureExtractor
             $merged['lists_count'] += (int)($structure['lists_count'] ?? 0);
             $merged['tables_count'] += (int)($structure['tables_count'] ?? 0);
             $merged['paragraph_count'] += (int)($structure['paragraph_count'] ?? 0);
+            $merged['images_count'] += (int)($structure['images_count'] ?? 0);
+            $merged['images_missing_alt'] += (int)($structure['images_missing_alt'] ?? 0);
 
             if (!empty($structure['paragraph_count'])) {
                 $paragraphLengths[] = [
@@ -112,6 +118,39 @@ class ContentStructureExtractor
             'tables_count' => 0,
             'paragraph_count' => 0,
             'avg_paragraph_length' => 0,
+            'images_count' => 0,
+            'images_missing_alt' => 0,
+        ];
+    }
+
+    /**
+     * @return array{count:int,missing_alt:int}
+     */
+    private function extractImages(string $html): array
+    {
+        if (!preg_match_all('/<img\b[^>]*>/iu', $html, $matches)) {
+            return ['count' => 0, 'missing_alt' => 0];
+        }
+
+        $count = 0;
+        $missingAlt = 0;
+
+        foreach ($matches[0] as $tag) {
+            $count++;
+
+            if (!preg_match('/\balt\s*=\s*(["\'])(.*?)\1/iu', $tag, $altMatch)) {
+                $missingAlt++;
+                continue;
+            }
+
+            if (trim((string)($altMatch[2] ?? '')) === '') {
+                $missingAlt++;
+            }
+        }
+
+        return [
+            'count' => $count,
+            'missing_alt' => $missingAlt,
         ];
     }
 

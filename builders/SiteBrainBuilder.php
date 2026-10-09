@@ -23,9 +23,10 @@ class SiteBrainBuilder
         $analysis = $linkGraph['analysis'] ?? [];
 
         return [
-            'version' => '3.2',
+            'version' => '3.3',
             'generated_at' => current_time('mysql'),
             'site' => $knowledge['site'],
+            'site_profile' => $knowledge['site_profile'] ?? [],
             'statistics' => $knowledge['statistics'],
             'taxonomy' => $knowledge['taxonomy'],
             'content_clusters' => $knowledge['content_clusters'],

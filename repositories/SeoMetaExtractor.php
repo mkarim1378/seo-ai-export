@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 class SeoMetaExtractor
 {
-    public function forPost(int $postId, string $primaryTaxonomy = 'category'): array
-    {
+    public function forPost(
+        int $postId,
+        string $primaryTaxonomy = 'category',
+        array $fallbacks = []
+    ): array {
         $yoast = $this->yoastPost($postId, $primaryTaxonomy);
         $rankMath = $this->rankMathPost($postId, $primaryTaxonomy);
 
-        return $this->merge($yoast, $rankMath);
+        return $this->finalize($this->merge($yoast, $rankMath), $fallbacks);
     }
 
-    public function forTerm(int $termId): array
+    public function forTerm(int $termId, array $fallbacks = []): array
     {
         $yoast = $this->yoastTerm($termId);
         $rankMath = $this->rankMathTerm($termId);
 
-        return $this->merge($yoast, $rankMath);
+        return $this->finalize($this->merge($yoast, $rankMath), $fallbacks);
     }
 
     /**
@@ -125,6 +128,9 @@ class SeoMetaExtractor
             'robots' => [
                 'index' => true,
                 'follow' => true,
+                'noarchive' => false,
+                'nosnippet' => false,
+                'noimageindex' => false,
             ],
             'primary_category' => null,
             'breadcrumb_title' => '',
@@ -134,9 +140,54 @@ class SeoMetaExtractor
             'twitter_title' => '',
             'twitter_description' => '',
             'twitter_image' => '',
+            'schema_types' => [],
+            'is_cornerstone' => false,
+            'resolved_title' => '',
+            'resolved_description' => '',
+            'title_length' => 0,
+            'description_length' => 0,
             'plugin' => null,
             'sources' => [],
         ];
+    }
+
+    /**
+     * @param array{title?:string,description?:string} $fallbacks
+     */
+    private function finalize(array $seo, array $fallbacks): array
+    {
+        $fallbackTitle = $this->stringify($fallbacks['title'] ?? '');
+        $fallbackDescription = $this->stringify($fallbacks['description'] ?? '');
+
+        $seoTitle = $this->stringify($seo['title'] ?? '');
+        $seoDescription = $this->stringify($seo['description'] ?? '');
+
+        $seo['resolved_title'] = $seoTitle !== '' ? $seoTitle : $fallbackTitle;
+        $seo['resolved_description'] = $seoDescription !== '' ? $seoDescription : $fallbackDescription;
+        $seo['title_length'] = mb_strlen($seo['resolved_title'], 'UTF-8');
+        $seo['description_length'] = mb_strlen($seo['resolved_description'], 'UTF-8');
+
+        if (!isset($seo['schema_types']) || !is_array($seo['schema_types'])) {
+            $seo['schema_types'] = [];
+        }
+
+        $seo['schema_types'] = array_values(array_unique(array_filter(array_map(
+            'strval',
+            $seo['schema_types']
+        ))));
+
+        $seo['is_cornerstone'] = (bool)($seo['is_cornerstone'] ?? false);
+
+        $robots = is_array($seo['robots'] ?? null) ? $seo['robots'] : [];
+        $seo['robots'] = [
+            'index' => (bool)($robots['index'] ?? true),
+            'follow' => (bool)($robots['follow'] ?? true),
+            'noarchive' => (bool)($robots['noarchive'] ?? false),
+            'nosnippet' => (bool)($robots['nosnippet'] ?? false),
+            'noimageindex' => (bool)($robots['noimageindex'] ?? false),
+        ];
+
+        return $seo;
     }
 
     private function merge(array $yoast, array $rankMath): array
@@ -211,6 +262,25 @@ class SeoMetaExtractor
             $fallbackSource,
             $sources
         );
+
+        $result['schema_types'] = $this->pickList(
+            $primary['schema_types'] ?? [],
+            $fallback['schema_types'] ?? [],
+            $primarySource,
+            $fallbackSource,
+            $sources,
+            'schema_types'
+        );
+
+        if (!empty($primary['is_cornerstone'])) {
+            $result['is_cornerstone'] = true;
+            $sources['is_cornerstone'] = $primarySource;
+        } elseif (!empty($fallback['is_cornerstone'])) {
+            $result['is_cornerstone'] = true;
+            $sources['is_cornerstone'] = $fallbackSource;
+        } else {
+            $result['is_cornerstone'] = false;
+        }
 
         $result['plugin'] = $plugin;
         $result['sources'] = $sources;
@@ -293,39 +363,74 @@ class SeoMetaExtractor
         string $fallbackSource,
         array &$sources
     ): array {
-        $default = ['index' => true, 'follow' => true];
+        $default = [
+            'index' => true,
+            'follow' => true,
+            'noarchive' => false,
+            'nosnippet' => false,
+            'noimageindex' => false,
+        ];
 
         if (is_array($primary) && $this->robotsIsExplicit($primary)) {
             $sources['robots'] = $primarySource;
-            return [
-                'index' => (bool)($primary['index'] ?? true),
-                'follow' => (bool)($primary['follow'] ?? true),
-            ];
+            return $this->normalizeRobots($primary);
         }
 
         if (is_array($fallback) && $this->robotsIsExplicit($fallback)) {
             $sources['robots'] = $fallbackSource;
-            return [
-                'index' => (bool)($fallback['index'] ?? true),
-                'follow' => (bool)($fallback['follow'] ?? true),
-            ];
+            return $this->normalizeRobots($fallback);
         }
 
         if (is_array($primary)) {
             $sources['robots'] = $primarySource;
-            return [
-                'index' => (bool)($primary['index'] ?? true),
-                'follow' => (bool)($primary['follow'] ?? true),
-            ];
+            return $this->normalizeRobots($primary);
         }
 
         return $default;
     }
 
+    private function normalizeRobots(array $robots): array
+    {
+        return [
+            'index' => (bool)($robots['index'] ?? true),
+            'follow' => (bool)($robots['follow'] ?? true),
+            'noarchive' => (bool)($robots['noarchive'] ?? false),
+            'nosnippet' => (bool)($robots['nosnippet'] ?? false),
+            'noimageindex' => (bool)($robots['noimageindex'] ?? false),
+        ];
+    }
+
     private function robotsIsExplicit(array $robots): bool
     {
         return array_key_exists('index', $robots)
-            || array_key_exists('follow', $robots);
+            || array_key_exists('follow', $robots)
+            || array_key_exists('noarchive', $robots)
+            || array_key_exists('nosnippet', $robots)
+            || array_key_exists('noimageindex', $robots);
+    }
+
+    /**
+     * @param list<string>|string $directives
+     * @return array{index:bool,follow:bool,noarchive:bool,nosnippet:bool,noimageindex:bool}
+     */
+    private function robotsFromDirectives(array|string $directives, bool $defaultIndex = true, bool $defaultFollow = true): array
+    {
+        if (is_string($directives)) {
+            $directives = preg_split('/\s*,\s*/', $directives) ?: [];
+        }
+
+        $directives = array_map(
+            static fn($d): string => strtolower(trim((string)$d)),
+            $directives
+        );
+
+        return [
+            'index' => $defaultIndex && !in_array('noindex', $directives, true),
+            'follow' => $defaultFollow && !in_array('nofollow', $directives, true),
+            'noarchive' => in_array('noarchive', $directives, true),
+            'nosnippet' => in_array('nosnippet', $directives, true),
+            'noimageindex' => in_array('noimageindex', $directives, true),
+        ];
     }
 
     private function pickPrimaryCategory(
@@ -356,10 +461,24 @@ class SeoMetaExtractor
 
         $noindex = get_post_meta($postId, '_yoast_wpseo_meta-robots-noindex', true);
         $nofollow = get_post_meta($postId, '_yoast_wpseo_meta-robots-nofollow', true);
+        $adv = $this->metaString($postId, '_yoast_wpseo_meta-robots-adv');
+
+        $robots = $this->robotsFromDirectives(
+            $adv,
+            !in_array((string)$noindex, ['1', 'yes'], true),
+            !in_array((string)$nofollow, ['1', 'yes'], true)
+        );
 
         $primaryKey = $primaryTaxonomy === 'product_cat'
             ? '_yoast_wpseo_primary_product_cat'
             : '_yoast_wpseo_primary_category';
+
+        $schemaTypes = array_values(array_filter([
+            $this->metaString($postId, '_yoast_wpseo_schema_page_type'),
+            $this->metaString($postId, '_yoast_wpseo_schema_article_type'),
+        ]));
+
+        $cornerstone = get_post_meta($postId, '_yoast_wpseo_is_cornerstone', true);
 
         return [
             'title' => $this->metaString($postId, '_yoast_wpseo_title'),
@@ -367,10 +486,7 @@ class SeoMetaExtractor
             'canonical' => $this->metaString($postId, '_yoast_wpseo_canonical'),
             'focus_keyword' => $focus,
             'secondary_keywords' => $secondary,
-            'robots' => [
-                'index' => !in_array((string)$noindex, ['1', 'yes'], true),
-                'follow' => !in_array((string)$nofollow, ['1', 'yes'], true),
-            ],
+            'robots' => $robots,
             'primary_category' => $this->resolveTerm(
                 (int)get_post_meta($postId, $primaryKey, true)
             ),
@@ -381,6 +497,8 @@ class SeoMetaExtractor
             'twitter_title' => $this->metaString($postId, '_yoast_wpseo_twitter-title'),
             'twitter_description' => $this->metaString($postId, '_yoast_wpseo_twitter-description'),
             'twitter_image' => $this->metaString($postId, '_yoast_wpseo_twitter-image'),
+            'schema_types' => $schemaTypes,
+            'is_cornerstone' => in_array((string)$cornerstone, ['1', 'yes', 'true'], true),
         ];
     }
 
@@ -392,10 +510,11 @@ class SeoMetaExtractor
         $focus = $keywords[0] ?? '';
         $secondary = array_slice($keywords, 1);
 
-        $robots = get_post_meta($postId, 'rank_math_robots', true);
-        if (!is_array($robots)) {
-            $robots = [];
+        $robotsRaw = get_post_meta($postId, 'rank_math_robots', true);
+        if (!is_array($robotsRaw)) {
+            $robotsRaw = [];
         }
+        $robots = $this->robotsFromDirectives($robotsRaw);
 
         $twitterTitle = $this->metaString($postId, 'rank_math_twitter_title');
         $twitterDescription = $this->metaString($postId, 'rank_math_twitter_description');
@@ -418,16 +537,18 @@ class SeoMetaExtractor
             }
         }
 
+        $snippet = $this->metaString($postId, 'rank_math_rich_snippet');
+        $schemaTypes = $snippet !== '' ? [$snippet] : [];
+
+        $pillar = get_post_meta($postId, 'rank_math_pillar_content', true);
+
         return [
             'title' => $this->metaString($postId, 'rank_math_title'),
             'description' => $this->metaString($postId, 'rank_math_description'),
             'canonical' => $this->metaString($postId, 'rank_math_canonical_url'),
             'focus_keyword' => $focus,
             'secondary_keywords' => $secondary,
-            'robots' => [
-                'index' => !in_array('noindex', $robots, true),
-                'follow' => !in_array('nofollow', $robots, true),
-            ],
+            'robots' => $robots,
             'primary_category' => $this->resolveTerm(
                 (int)get_post_meta($postId, 'rank_math_primary_category', true)
             ),
@@ -438,6 +559,8 @@ class SeoMetaExtractor
             'twitter_title' => $twitterTitle,
             'twitter_description' => $twitterDescription,
             'twitter_image' => $twitterImage,
+            'schema_types' => $schemaTypes,
+            'is_cornerstone' => in_array((string)$pillar, ['1', 'on', 'yes', 'true'], true),
         ];
     }
 
@@ -451,10 +574,11 @@ class SeoMetaExtractor
             'canonical' => $this->termMetaString($termId, 'wpseo_canonical'),
             'focus_keyword' => $this->termMetaString($termId, 'wpseo_focuskw'),
             'secondary_keywords' => [],
-            'robots' => [
-                'index' => !in_array((string)$noindex, ['1', 'yes', 'noindex'], true),
-                'follow' => true,
-            ],
+            'robots' => $this->robotsFromDirectives(
+                [],
+                !in_array((string)$noindex, ['1', 'yes', 'noindex'], true),
+                true
+            ),
             'primary_category' => null,
             'breadcrumb_title' => $this->termMetaString($termId, 'wpseo_bctitle'),
             'og_title' => $this->termMetaString($termId, 'wpseo_opengraph-title'),
@@ -463,6 +587,8 @@ class SeoMetaExtractor
             'twitter_title' => $this->termMetaString($termId, 'wpseo_twitter-title'),
             'twitter_description' => $this->termMetaString($termId, 'wpseo_twitter-description'),
             'twitter_image' => '',
+            'schema_types' => [],
+            'is_cornerstone' => false,
         ];
     }
 
@@ -474,10 +600,12 @@ class SeoMetaExtractor
         $focus = $keywords[0] ?? '';
         $secondary = array_slice($keywords, 1);
 
-        $robots = get_term_meta($termId, 'rank_math_robots', true);
-        if (!is_array($robots)) {
-            $robots = [];
+        $robotsRaw = get_term_meta($termId, 'rank_math_robots', true);
+        if (!is_array($robotsRaw)) {
+            $robotsRaw = [];
         }
+
+        $snippet = $this->termMetaString($termId, 'rank_math_rich_snippet');
 
         return [
             'title' => $this->termMetaString($termId, 'rank_math_title'),
@@ -485,10 +613,7 @@ class SeoMetaExtractor
             'canonical' => $this->termMetaString($termId, 'rank_math_canonical_url'),
             'focus_keyword' => $focus,
             'secondary_keywords' => $secondary,
-            'robots' => [
-                'index' => !in_array('noindex', $robots, true),
-                'follow' => !in_array('nofollow', $robots, true),
-            ],
+            'robots' => $this->robotsFromDirectives($robotsRaw),
             'primary_category' => null,
             'breadcrumb_title' => $this->termMetaString($termId, 'rank_math_breadcrumb_title'),
             'og_title' => $this->termMetaString($termId, 'rank_math_facebook_title'),
@@ -497,6 +622,8 @@ class SeoMetaExtractor
             'twitter_title' => $this->termMetaString($termId, 'rank_math_twitter_title'),
             'twitter_description' => $this->termMetaString($termId, 'rank_math_twitter_description'),
             'twitter_image' => $this->termMetaString($termId, 'rank_math_twitter_image'),
+            'schema_types' => $snippet !== '' ? [$snippet] : [],
+            'is_cornerstone' => false,
         ];
     }
 

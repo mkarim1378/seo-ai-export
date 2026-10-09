@@ -6,27 +6,24 @@ class SemanticEnricher
 {
     public function enrich(array $knowledge): array
     {
-        $knowledge['site'] = $this->site();
+        $profile = (new SiteProfileBuilder())->build();
+
+        $knowledge['site_profile'] = $profile;
+        $knowledge['site'] = [
+            'name' => $profile['identity']['name'] ?? get_bloginfo('name'),
+            'description' => $profile['identity']['description'] ?? '',
+            'url' => $profile['identity']['url'] ?? home_url(),
+            'language' => $profile['identity']['language'] ?? get_locale(),
+            'theme' => $profile['technical_context']['theme'] ?? null,
+            'wordpress' => $profile['technical_context']['wordpress'] ?? null,
+            'woocommerce' => $profile['technical_context']['woocommerce'] ?? null,
+            'technical_context_note' => $profile['technical_context']['note'] ?? null,
+        ];
         $knowledge['taxonomy'] = $this->taxonomy($knowledge);
         $knowledge['statistics'] = $this->statistics($knowledge);
         $knowledge['content_clusters'] = $this->contentClusters($knowledge);
 
         return $knowledge;
-    }
-
-    private function site(): array
-    {
-        return [
-            'name' => get_bloginfo('name'),
-            'description' => get_bloginfo('description'),
-            'url' => home_url(),
-            'language' => get_locale(),
-            'theme' => wp_get_theme()->get('Name'),
-            'wordpress' => get_bloginfo('version'),
-            'woocommerce' => class_exists('WooCommerce')
-                ? WC()->version
-                : null,
-        ];
     }
 
     private function statistics(array $knowledge): array
@@ -111,8 +108,6 @@ class SemanticEnricher
     }
 
     /**
-     * Resolve category refs (legacy string name/slug or {id,name,slug}) to known cluster slugs.
-     *
      * @param list<mixed> $terms
      * @param array<int,string> $byId
      * @param array<string,string> $byName

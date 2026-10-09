@@ -24,7 +24,10 @@ class PageMapper
             'parent' => $this->parent($page),
             'author' => $this->author($page),
             'media' => $this->media($page),
-            'seo' => $this->seoMetaExtractor->forPost($page->ID, 'category'),
+            'seo' => $this->seoMetaExtractor->forPost($page->ID, 'category', [
+                'title' => get_the_title($page),
+                'description' => ai_clean_text($page->post_excerpt),
+            ]),
             'custom_fields' => $this->customFields($page),
         ];
     }
@@ -80,12 +83,16 @@ class PageMapper
     private function author(WP_Post $page): array
     {
         $user = get_userdata($page->post_author);
+        $authorId = (int)$page->post_author;
 
         return [
-            'id' => $page->post_author,
+            'id' => $authorId,
             'name' => $user
                 ? $user->display_name
                 : '',
+            'published_pages' => $authorId > 0
+                ? (int) count_user_posts($authorId, 'page', true)
+                : 0,
         ];
     }
 

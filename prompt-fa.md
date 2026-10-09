@@ -33,18 +33,20 @@
 
 | فایل | محتویات | رجوع کن وقتی… |
 |------|---------|----------------|
-| **`manifest.json`** | خلاصه اجرا، تعداد محصولات/دسته‌ها/پست‌ها/صفحات/رسانه، خلاصه audit و link_analysis، ایندکس مسیر فایل‌ها | overview سریع، «سایت چقدر بزرگ است؟»، قبل از هر گزارش مدیریتی |
-| **`seo_audit.json`** | لیست findings با `id`، `severity` (`critical`/`warning`/`opportunity`)، evidence، recommendation، `ai_action`؛ به‌همراه summary و ایندکس‌ها | اولویت کار، Sprint، «چه چیزی خراب است؟»، cannibalization، thin/stale، noindex، کمبود تصویر/برند/GTIN/نظر |
-| **`knowledge.json`** | موجودیت‌های کامل: products / categories / posts / pages / media — محتوا، متریک متن، `structure`، `seo` نرمال، روابط پایه؛ محصولات: identifiers، variations، reviews، breadcrumb | جزئیات یک URL/محصول/مقاله، بازنویسی title/meta/outline، خواندن هدینگ‌ها و لینک‌های یک صفحه، متن نظرات |
-| **`site_brain.json`** | آمار، taxonomy، content_clusters، knowledge_graph، relationships، navigation/menus، `link_analysis`، و `entity_index` سبک (نه متن کامل) | استراتژی، Topic Cluster، معماری اطلاعات، نقشه ناوبری؛ برای متن کامل برو سراغ `knowledge.json` |
-| **`internal_link_graph.json`** | نودها با incoming/outgoing + anchor، orphan، weak hub، dead internal links، duplicate anchors، توزیع لینک بر اساس دسته | orphan، weak hub، لینک مرده، انکر تکراری، پیشنهاد لینک‌سازی داخلی دقیق |
+| **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link، خلاصه `site_profile`، ایندکس فایل‌ها | overview سریع، قبل از گزارش مدیریتی |
+| **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps، صفحات ویژه (home/shop/...)، پلاگین سئو؛ نسخه WP/قالب فقط به‌عنوان technical context | technical SEO سطح‌سایت، crawlability، «سایت noindex است؟» |
+| **`seo_audit.json`** | findings با severity و `ai_action` | اولویت کار، Sprint، مشکلات قابل‌اجرا |
+| **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo | جزئیات یک URL، بازنویسی، FAQ، نظرات |
+| **`site_brain.json`** | آمار، clusters، graph، navigation، link_analysis، site_profile، entity_index سبک | استراتژی، IA، ناوبری |
+| **`internal_link_graph.json`** | orphan / hub / unresolved links / duplicate anchors | لینک‌سازی داخلی |
 
 ### مدل داخل موجودیت‌ها (عمدتاً در `knowledge.json`)
 
 - متریک متن فارسی: `word_count` / `sentence_count` / `char_count`، `html_length`
-- `structure`: headings، internal_links (url + anchor + target_post_id)، external_links، faq_candidates، لیست/جدول
-- `seo`: title، description، canonical، focus_keyword، robots، OG/Twitter، `plugin`، `sources` (Yoast و/یا Rank Math)
-- محصول: `identifiers.brand|gtin|ean|mpn`، `variations`، `reviews`، `breadcrumb`
+- `structure`: headings، links، faq_candidates، `images_count` / `images_missing_alt`
+- `seo`: title/description/canonical/focus_keyword، robots (index/follow/noarchive/nosnippet/noimageindex)، `schema_types`، `is_cornerstone`، `resolved_title`/`resolved_description`، `title_length`/`description_length`، OG/Twitter، `plugin`/`sources`
+- نویسنده پست: `published_posts` (سیگنال EEAT سبک)
+- محصول: `identifiers`، `variations`، `reviews`، `breadcrumb`
 
 ---
 
@@ -56,6 +58,7 @@
 |----------------|------------|------------------------|
 | اولویت کار، Sprint، «از کجا شروع کنم؟» | `seo_audit.json` (+ در صورت وجود `manifest.json`) | جزئیات یک finding → همان entity در `knowledge.json` |
 | گزارش مدیریتی / KPI / وضعیت کلی | `manifest.json` | `seo_audit.json` برای چند مثال critical |
+| crawlability / robots / sitemap / visibility سایت | `site_profile.json` | `manifest.site_profile` اگر فایل جدا نبود |
 | یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ) | `knowledge.json` (همان entity) | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
 | Topic Cluster / IA / استراتژی محتوایی سطح سایت | `site_brain.json` | نمونه موجودیت‌ها در `knowledge.json` |
 | منو، ناوبری، مسیر کاربر در سایت | `site_brain.json` (navigation) | breadcrumb محصول در `knowledge.json` |

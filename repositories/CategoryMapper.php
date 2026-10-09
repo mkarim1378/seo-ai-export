@@ -22,7 +22,10 @@ class CategoryMapper
             'content' => $this->content($rawDescription),
             'structure' => $this->structureExtractor->extract($rawDescription),
             'taxonomy' => $this->taxonomy($term),
-            'seo' => $this->seoMetaExtractor->forTerm($term->term_id),
+            'seo' => $this->seoMetaExtractor->forTerm($term->term_id, [
+                'title' => $term->name,
+                'description' => ai_clean_text((string)($term->description ?? '')),
+            ]),
             'media' => $this->media($term),
             'custom_fields' => $this->customFields($term),
         ];

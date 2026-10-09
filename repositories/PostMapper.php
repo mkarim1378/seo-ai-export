@@ -24,7 +24,10 @@ class PostMapper
             'taxonomy' => $this->taxonomy($post),
             'author' => $this->author($post),
             'media' => $this->media($post),
-            'seo' => $this->seoMetaExtractor->forPost($post->ID, 'category'),
+            'seo' => $this->seoMetaExtractor->forPost($post->ID, 'category', [
+                'title' => get_the_title($post),
+                'description' => ai_clean_text($post->post_excerpt),
+            ]),
             'custom_fields' => $this->customFields($post),
         ];
     }
@@ -96,10 +99,14 @@ class PostMapper
     private function author(WP_Post $post): array
     {
         $user = get_userdata($post->post_author);
+        $authorId = (int)$post->post_author;
 
         return [
-            'id' => $post->post_author,
+            'id' => $authorId,
             'name' => $user ? $user->display_name : '',
+            'published_posts' => $authorId > 0
+                ? (int) count_user_posts($authorId, 'post', true)
+                : 0,
         ];
     }
 

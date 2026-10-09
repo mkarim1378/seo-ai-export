@@ -59,6 +59,7 @@ require_once AI_EXPORTER_ROOT.'/builders/InternalLinkGraphBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/InternalLinkGraphExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/WooCommerceRelationshipBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/KnowledgeGraphBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/SiteProfileBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditBuilder.php';
@@ -117,12 +118,14 @@ try {
 
     $brain = (new SiteBrainExporter($config))->export($knowledge);
     $linkSummary = $brain['link_analysis']['summary'] ?? [];
+    $siteProfile = $brain['site_profile'] ?? [];
 
     $audit = (new SeoAuditExporter($config))->export($knowledge, $brain);
     $auditSummary = $audit['summary'] ?? [];
 
     $files = [
         'knowledge' => 'json/knowledge.json',
+        'site_profile' => 'json/site_profile.json',
         'site_brain' => 'json/site_brain.json',
         'internal_link_graph' => 'json/internal_link_graph.json',
         'seo_audit' => 'json/seo_audit.json',
@@ -138,6 +141,12 @@ try {
         'posts' => count($knowledge['posts']),
         'pages' => count($knowledge['pages']),
         'media' => count($knowledge['media']),
+        'site_profile' => [
+            'search_engine_visibility' => $siteProfile['crawl']['search_engine_visibility'] ?? null,
+            'permalink_structure' => $siteProfile['crawl']['permalink_structure'] ?? null,
+            'seo_plugins' => $siteProfile['seo_plugins'] ?? [],
+            'sitemaps' => $siteProfile['crawl']['sitemaps'] ?? [],
+        ],
         'link_analysis' => $linkSummary,
         'seo_audit' => $auditSummary,
         'files' => $files,
@@ -157,6 +166,11 @@ try {
             'name' => 'seo_audit.json',
             'href' => 'output/json/seo_audit.json',
             'description' => 'Actionable SEO findings for AI agents',
+        ],
+        [
+            'name' => 'site_profile.json',
+            'href' => 'output/json/site_profile.json',
+            'description' => 'Crawl/visibility/permalink/sitemap/SEO plugin context',
         ],
         [
             'name' => 'site_brain.json',
