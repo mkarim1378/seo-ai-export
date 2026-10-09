@@ -42,7 +42,8 @@ $include = @(
     'helpers',
     'repositories',
     'views',
-    'writers'
+    'writers',
+    'input'
 )
 
 foreach ($item in $include) {

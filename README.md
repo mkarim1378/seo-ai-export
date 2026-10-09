@@ -26,12 +26,13 @@
 
 | خروجی | کاربرد |
 |--------|--------|
-| `knowledge.json` | مرجع کامل موجودیت‌ها برای چت با AI |
+| `knowledge.json` | مرجع کامل موجودیت‌ها (+ `seo.keyword_coverage`) برای چت با AI |
+| `keyword_map.json` | inventory کیورد، coverage، cannibalization، gaps، پیشنهاد primary/secondary |
 | `seo_audit.json` | لیست مشکلات و فرصت‌های سئو با اولویت و `ai_action` |
-| `ai_context.json` | بسته شروع AI (خلاصه + top findings + url_index) |
-| `site_profile.json` | visibility، permalink، robots.txt، sitemap، صفحات ویژه، پلاگین سئو |
-| `site_brain.json` | بسته هوش سایت (آمار، خوشه‌ها، روابط، ناوبری، `entity_index` سبک) |
-| `internal_link_graph.json` | orphan، weak hub، لینک مرده، انکر تکراری |
+| `ai_context.json` | بسته شروع AI (خلاصه + impact-ranked findings + next_actions + keyword summary) |
+| `site_profile.json` | visibility، permalink، robots/sitemap، `seo_plugin_globals`، صفحات ویژه |
+| `site_brain.json` | بسته هوش سایت (خوشه‌های غنی با pillar، روابط، ناوبری، `entity_index`) |
+| `internal_link_graph.json` | orphan، weak hub، لینک مرده، link_opportunities، category nodes |
 | CSV / Markdown | جداول تخت و فایل‌های متنی per-entity |
 
 سئو متا از **Yoast** و **Rank Math** نرمال می‌شود. برای محصولات: برند، GTIN، ورییشن، نظرات تأییدشده و breadcrumb هم استخراج می‌شود.
@@ -108,6 +109,7 @@ php index.php
 output/
   json/
     ai_context.json      ← شروع کار با AI
+    keyword_map.json     ← کیورد ریسرچ on-site
     knowledge.json
     site_profile.json
     site_brain.json
@@ -119,6 +121,9 @@ output/
   markdown/
     products/{id}.md
     ...
+
+input/                   ← اختیاری
+  gsc-queries.csv        ← CSV سرچ‌کنسول برای merge حجم/کوئری
 ```
 
 ---
@@ -127,13 +132,14 @@ output/
 
 | فایل | چه می‌گوید | کی به AI بده |
 |------|------------|--------------|
-| **`ai_context.json`** | بسته جمع‌وجور شروع: خلاصه سایت، counts، top findings، url_index | **اولویت ۱ — شروع کار با Gem** |
+| **`ai_context.json`** | بسته شروع: خلاصه سایت، `next_actions`، findings با impact، keyword summary، url_index غنی | **اولویت ۱ — شروع کار با Gem** |
+| **`keyword_map.json`** | inventory، پیشنهاد کیورد، gaps، cannibalization، اختیاری GSC | کیورد ریسرچ / پیشنهاد primary |
 | **`seo_audit.json`** | همه یافته‌های قابل‌اجرا با شدت و `ai_action` | وقتی از سقف ai_context رد شدی |
 | **`manifest.json`** | خلاصه اجرا و ایندکس فایل‌ها | overview خیلی سریع |
-| **`site_profile.json`** | visibility، robots، sitemap، صفحات ویژه | technical SEO سطح‌سایت |
-| **`knowledge.json`** | کل موجودیت‌ها با محتوا، structure، seo | جزئیات یک URL / بازنویسی |
-| **`site_brain.json`** | آمار + خوشه + گراف + ناوبری + entity_index | استراتژی و معماری |
-| **`internal_link_graph.json`** | orphan / hub / unresolved / duplicate anchor | لینک‌سازی داخلی |
+| **`site_profile.json`** | visibility، robots، sitemap reachable، seo_plugin_globals | technical SEO سطح‌سایت |
+| **`knowledge.json`** | کل موجودیت‌ها با محتوا، structure، seo، keyword_coverage | جزئیات یک URL / بازنویسی |
+| **`site_brain.json`** | آمار + خوشه غنی (pillar) + گراف + ناوبری + entity_index | استراتژی و معماری |
+| **`internal_link_graph.json`** | orphan / hub / unresolved / link_opportunities | لینک‌سازی داخلی |
 | CSV / Markdown | خواندن دستی یا ایمپورت اکسل | گزارش انسانی، ادیت محتوا |
 
 ### فیلدهای مهم داخل موجودیت‌ها
@@ -157,8 +163,13 @@ output/
 4. به‌عنوان Knowledge / Files به Gem بده (همه اجباری نیست؛ پرامپت جدول ROUTING دارد):
    - **حداقل پیشنهادی:** `output/json/ai_context.json`
    - بهتر: `ai_context.json` + `prompt` (دستورالعمل Gem)
-   - کامل‌تر: همان + `seo_audit.json` / `knowledge.json` فقط وقتی روی URL خاصی عمیق می‌شوی
+   - برای کیورد: همان + `keyword_map.json`
+   - کامل‌تر: + `seo_audit.json` / `knowledge.json` فقط وقتی روی URL خاصی عمیق می‌شوی
 5. بعد سؤال بپرس. مدل نباید هر بار همه فایل‌ها را اسکن کند.
+
+### Search Console CSV (اختیاری)
+
+فایل Queries سرچ‌کنسول را به‌صورت `input/gsc-queries.csv` بگذار (ستون‌های Query / Page / Clicks / Impressions / Position). در `keyword_map.json` با inventory سایت merge می‌شود.
 
 ### اگر حجم فایل برای آپلود زیاد است
 
@@ -168,9 +179,10 @@ output/
 
 ### نمونه سؤال‌هایی که می‌توانی بپرسی
 
-- «۱۰ کار critical بعدی را با Sprint دو هفته‌ای بده.»
+- «۱۰ کار بعدی را از next_actions با Sprint دو هفته‌ای بده.»
 - «صفحات orphan را لیست کن و برای هرکدام منبع لینک پیشنهاد بده.»
-- «کدام محصولات focus keyword یکسان دارند؟»
+- «برای صفحات بدون focus keyword پیشنهاد primary بده.»
+- «کدام محصولات focus keyword یکسان یا نزدیک دارند؟»
 - «برای دسته X یک تقویت محتوا و FAQ بر اساس structure فعلی بنویس.»
 - «Roadmap سه‌ماهه سئوی فروشگاه را بنویس.»
 
@@ -269,12 +281,13 @@ ai-exporter/
 ├── prompt-en.md           # دستورالعمل Gem (English)
 ├── README.md
 ├── assets/report.css      # استایل گزارش مرورگر
-├── builders/              # knowledge, link graph, site brain, seo audit
+├── builders/              # knowledge, link graph, site brain, seo audit, keyword map
 ├── exporters/             # products, categories, posts, pages, media
 ├── helpers/               # TextMetrics, ContentStructureExtractor
 ├── repositories/          # mapperها + SeoMetaExtractor
 ├── views/ExportReport.php
 ├── writers/               # JSON / CSV / Markdown
+├── input/                 # اختیاری: gsc-queries.csv
 └── output/                # بعد از اجرا ساخته می‌شود (آپلود لازم نیست)
 ```
 
@@ -322,8 +335,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 
 1. ~~استخراج ساختار محتوا (هدینگ، لینک داخلی با انکر، متریک فارسی)~~
 2. ~~سئو متای کامل Yoast + Rank Math + غنی‌سازی محصول~~
-3. ~~گراف لینک داخلی + orphan / hub / dead~~
+3. ~~گراف لینک داخلی + orphan / hub / dead + link_opportunities + category nodes~~
 4. ~~`seo_audit.json` برای عامل‌های AI~~
+5. ~~`keyword_map.json` + coverage + پیشنهاد کیورد on-site (+ GSC CSV اختیاری)~~
+6. ~~impact_score / next_actions در `ai_context` + خوشه‌های pillar-aware~~
+7. ~~commerce schema essentials + sales-weighted + seo_plugin_globals~~
 
 ---
 

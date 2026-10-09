@@ -10,7 +10,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'version' => '2.5.0',
+    'version' => '3.0.0',
 
     /*
     |--------------------------------------------------------------------------
@@ -60,9 +60,21 @@ return [
 
         'seo_audit' => true,
 
+        'keyword_map' => true,
+
         'ai_context' => true,
 
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Optional Search Console CSV (Queries export)
+    |--------------------------------------------------------------------------
+    | Place file at input/gsc-queries.csv or set an absolute path here.
+    | Expected columns: Query/Page/Clicks/Impressions/Position (GSC export names OK).
+    */
+
+    'gsc_csv' => '',
 
     /*
     |--------------------------------------------------------------------------

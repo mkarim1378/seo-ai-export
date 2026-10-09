@@ -66,6 +66,70 @@ class TextMetrics
         ];
     }
 
+    /**
+     * Normalize a keyword/phrase for inventory matching (Persian yeh/kaf, case, whitespace).
+     */
+    public static function normalizeKeyword(?string $text): string
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = strip_tags($text);
+        $text = str_replace(
+            ["\u{064A}", "\u{0643}", "\u{0629}", "\u{200C}"],
+            ["\u{06CC}", "\u{06A9}", "\u{0647}", ' '],
+            $text
+        );
+        // Also handle literal Arabic yeh/kaf if encoded as UTF-8 bytes already matched above;
+        // keep explicit byte-safe replacements for common forms:
+        $text = str_replace(['ي', 'ك', 'ة'], ['ی', 'ک', 'ه'], $text);
+        $text = mb_strtolower($text, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text) ?? '';
+
+        return trim($text);
+    }
+
+    /**
+     * Fuzzy keyword equality: exact normalized match, or one contains the other (min length 4).
+     */
+    public static function keywordsMatch(?string $a, ?string $b): bool
+    {
+        $na = self::normalizeKeyword($a);
+        $nb = self::normalizeKeyword($b);
+
+        if ($na === '' || $nb === '') {
+            return false;
+        }
+
+        if ($na === $nb) {
+            return true;
+        }
+
+        $minLen = 4;
+        if (mb_strlen($na, 'UTF-8') < $minLen || mb_strlen($nb, 'UTF-8') < $minLen) {
+            return false;
+        }
+
+        return str_contains($na, $nb) || str_contains($nb, $na);
+    }
+
+    /**
+     * Whether haystack text contains the keyword (normalized substring).
+     */
+    public static function textContainsKeyword(?string $haystack, ?string $keyword): bool
+    {
+        $nHay = self::normalizeKeyword($haystack);
+        $nKey = self::normalizeKeyword($keyword);
+
+        if ($nHay === '' || $nKey === '') {
+            return false;
+        }
+
+        return str_contains($nHay, $nKey);
+    }
+
     private static function normalize(?string $text): string
     {
         if ($text === null || $text === '') {

@@ -33,21 +33,22 @@
 
 | فایل | محتویات | رجوع کن وقتی… |
 |------|---------|----------------|
-| **`ai_context.json`** | بسته شروع AI: خلاصه site_profile، counts، top findings (سقف‌دار)، url_index بدون body، اشاره‌گر فایل‌ها | **اول این را بخوان** برای overview و اولویت‌ها |
-| **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link/site_profile، ایندکس فایل‌ها | overview خیلی سریع اگر ai_context نبود |
-| **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps، صفحات ویژه، پلاگین سئو؛ نسخه WP/قالب فقط technical context | crawlability سطح‌سایت |
+| **`ai_context.json`** | بسته شروع AI: خلاصه site_profile، counts، top findings با `impact_score`، `next_actions`، keyword summary، url_index غنی | **اول این را بخوان** برای overview و اولویت‌ها |
+| **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link/keyword/site_profile، ایندکس فایل‌ها | overview خیلی سریع اگر ai_context نبود |
+| **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps (+reachable)، صفحات ویژه، پلاگین سئو، `seo_plugin_globals` | crawlability سطح‌سایت |
+| **`keyword_map.json`** | inventory کیوردها، url_targets + coverage، cannibalization، gaps، suggestions، اختیاری GSC | کیورد ریسرچ on-site، پیشنهاد primary/secondary |
 | **`seo_audit.json`** | همه findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست) | لیست کامل مشکلات وقتی از سقف ai_context رد شدی |
-| **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo | جزئیات یک URL، بازنویسی، FAQ، نظرات |
-| **`site_brain.json`** | آمار، clusters، graph، navigation، link_analysis، site_profile، entity_index سبک | استراتژی، IA، ناوبری |
-| **`internal_link_graph.json`** | orphan / hub / unresolved links / duplicate anchors | لینک‌سازی داخلی |
+| **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo (+ `seo.keyword_coverage`) | جزئیات یک URL، بازنویسی، FAQ، نظرات |
+| **`site_brain.json`** | آمار، clusters غنی (pillar/keywords)، graph، navigation، link_analysis (+ opportunities)، entity_index | استراتژی، IA، ناوبری |
+| **`internal_link_graph.json`** | orphan / hub / unresolved / duplicate anchors / link_opportunities / category nodes | لینک‌سازی داخلی |
 
 ### مدل داخل موجودیت‌ها (عمدتاً در `knowledge.json`)
 
 - متریک متن فارسی: `word_count` / `sentence_count` / `char_count`، `html_length`
 - `structure`: headings، links، faq_candidates، `images_count` / `images_missing_alt`
-- `seo`: title/description/canonical/focus_keyword، robots (index/follow/noarchive/nosnippet/noimageindex)، `schema_types`، `is_cornerstone`، `resolved_title`/`resolved_description`، `title_length`/`description_length`، OG/Twitter، `plugin`/`sources`
+- `seo`: title/description/canonical/focus_keyword، robots، `schema_types`، `is_cornerstone`، `resolved_*`، lengths، OG/Twitter، `plugin`/`sources`، **`keyword_coverage`**
 - نویسنده پست: `published_posts` (سیگنال EEAT سبک)
-- محصول: `identifiers`، `variations`، `reviews`، `breadcrumb`
+- محصول: `identifiers`، `variations`، `reviews`، `breadcrumb`، `total_sales`
 
 ---
 
@@ -57,16 +58,17 @@
 
 | نوع سؤال / هدف | اول باز کن | بعداً فقط اگر لازم شد |
 |----------------|------------|------------------------|
-| اولویت کار، Sprint، «از کجا شروع کنم؟» | `ai_context.json` | اگر نبود: `seo_audit.json` + `manifest.json`؛ جزئیات → `knowledge.json` |
+| اولویت کار، Sprint، «از کجا شروع کنم؟» | `ai_context.json` (`next_actions` + top_findings) | اگر نبود: `seo_audit.json` + `manifest.json`؛ جزئیات → `knowledge.json` |
 | گزارش مدیریتی / KPI / وضعیت کلی | `ai_context.json` یا `manifest.json` | `seo_audit` برای مثال‌های بیشتر |
-| crawlability / robots / sitemap / visibility سایت | `ai_context.site_profile_summary` یا `site_profile.json` | — |
-| یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ) | `knowledge.json` (همان entity) | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
-| Topic Cluster / IA / استراتژی محتوایی سطح سایت | `site_brain.json` | نمونه موجودیت‌ها در `knowledge.json` |
+| crawlability / robots / sitemap / visibility / noindex سراسری | `ai_context.site_profile_summary` یا `site_profile.json` | — |
+| پیشنهاد کیورد / inventory / gap / cannibalization نرم | `keyword_map.json` یا `ai_context.keyword_intelligence` | تأیید coverage روی entity در `knowledge.json` |
+| یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ، coverage) | `knowledge.json` (همان entity) | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
+| Topic Cluster / IA / pillar / استراتژی محتوایی | `site_brain.json` (clusters غنی) | نمونه موجودیت‌ها در `knowledge.json` |
 | منو، ناوبری، مسیر کاربر در سایت | `site_brain.json` (navigation) | breadcrumb محصول در `knowledge.json` |
-| orphan / weak hub / لینک مرده / انکر تکراری | `internal_link_graph.json` | اگر نبود → `site_brain.link_analysis` یا findingهای لینک در `seo_audit.json`؛ جزئیات صفحه → `knowledge.json` |
-| cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` | تأیید روی entity در `knowledge.json` |
-| برند / GTIN / نظرات / تصویر محصول | `seo_audit.json` (findingهای commerce) یا مستقیم entity در `knowledge.json` | — |
-| فقط `knowledge.json` پیوست شده | همان | محدودیت را بگو؛ برای orphan/Sprint دقیق بخواه بقیه فایل‌ها را هم بدهد |
+| orphan / weak hub / لینک مرده / پیشنهاد لینک داخلی | `internal_link_graph.json` | اگر نبود → `site_brain.link_analysis` یا findingهای لینک در `seo_audit.json` |
+| cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` (+ `keyword_map` برای کیورد) | تأیید روی entity در `knowledge.json` |
+| برند / GTIN / نظرات / تصویر / schema essentials محصول | `seo_audit.json` (findingهای commerce) یا مستقیم entity در `knowledge.json` | — |
+| فقط `knowledge.json` پیوست شده | همان | محدودیت را بگو؛ برای orphan/Sprint/کیورد دقیق بخواه بقیه فایل‌ها را هم بدهد |
 
 اگر فایل مناسب پیوست نشده بود، جواب کلی و بی‌مدرک نساز. بنویس: «برای این سؤال به `[نام فایل]` نیاز دارم.»
 

@@ -62,6 +62,8 @@ require_once AI_EXPORTER_ROOT.'/builders/KnowledgeGraphBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteProfileBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/KeywordIntelligenceBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/KeywordIntelligenceExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/AiContextBuilder.php';
@@ -116,13 +118,20 @@ try {
         rtrim($config['output'], '/') . '/json'
     );
 
-    $json->write('knowledge.json', $knowledge);
-
     $brain = (new SiteBrainExporter($config))->export($knowledge);
     $linkSummary = $brain['link_analysis']['summary'] ?? [];
     $siteProfile = $brain['site_profile'] ?? [];
 
-    $audit = (new SeoAuditExporter($config))->export($knowledge, $brain);
+    $keywordMap = [];
+    if (!empty($config['export']['keyword_map'])) {
+        $keywordExport = (new KeywordIntelligenceExporter($config))->export($knowledge, $brain);
+        $keywordMap = $keywordExport['map'];
+        $knowledge = $keywordExport['knowledge'];
+    }
+
+    $json->write('knowledge.json', $knowledge);
+
+    $audit = (new SeoAuditExporter($config))->export($knowledge, $brain, $keywordMap);
     $auditSummary = $audit['summary'] ?? [];
 
     $files = [
@@ -131,6 +140,7 @@ try {
         'site_profile' => 'json/site_profile.json',
         'site_brain' => 'json/site_brain.json',
         'internal_link_graph' => 'json/internal_link_graph.json',
+        'keyword_map' => 'json/keyword_map.json',
         'seo_audit' => 'json/seo_audit.json',
         'manifest' => 'json/manifest.json',
     ];
@@ -141,7 +151,16 @@ try {
             $knowledge,
             $brain,
             $audit,
-            $files
+            $files,
+            $keywordMap
+        );
+    }
+
+    $sitemapSummary = $siteProfile['crawl']['sitemaps'] ?? [];
+    if (is_array($sitemapSummary) && isset($sitemapSummary[0]) && is_array($sitemapSummary[0])) {
+        $sitemapSummary = array_map(
+            static fn(array $row): string => (string)($row['url'] ?? ''),
+            $sitemapSummary
         );
     }
 
@@ -149,6 +168,7 @@ try {
         'generated_at' => date('Y-m-d H:i:s'),
         'site_name' => get_bloginfo('name'),
         'site_url' => home_url(),
+        'version' => $config['version'] ?? null,
         'products' => count($knowledge['products']),
         'categories' => count($knowledge['categories']),
         'posts' => count($knowledge['posts']),
@@ -158,12 +178,15 @@ try {
             'search_engine_visibility' => $siteProfile['crawl']['search_engine_visibility'] ?? null,
             'permalink_structure' => $siteProfile['crawl']['permalink_structure'] ?? null,
             'seo_plugins' => $siteProfile['seo_plugins'] ?? [],
-            'sitemaps' => $siteProfile['crawl']['sitemaps'] ?? [],
+            'seo_plugin_globals' => $siteProfile['seo_plugin_globals'] ?? [],
+            'sitemaps' => $sitemapSummary,
         ],
         'link_analysis' => $linkSummary,
+        'keyword_map' => $keywordMap['summary'] ?? [],
         'seo_audit' => $auditSummary,
         'ai_context' => [
             'top_findings' => count($aiContext['seo_audit']['top_findings'] ?? []),
+            'next_actions' => count($aiContext['next_actions'] ?? []),
             'url_index' => count($aiContext['url_index'] ?? []),
         ],
         'files' => $files,
@@ -186,6 +209,11 @@ try {
             'description' => 'Start here for Gemini/ChatGPT — compact AI pack',
         ],
         [
+            'name' => 'keyword_map.json',
+            'href' => 'output/json/keyword_map.json',
+            'description' => 'Keyword inventory, gaps, suggestions, cannibalization',
+        ],
+        [
             'name' => 'seo_audit.json',
             'href' => 'output/json/seo_audit.json',
             'description' => 'Full actionable SEO findings',
@@ -203,12 +231,12 @@ try {
         [
             'name' => 'internal_link_graph.json',
             'href' => 'output/json/internal_link_graph.json',
-            'description' => 'Orphans, hubs, and link structure',
+            'description' => 'Orphans, hubs, link opportunities, and link structure',
         ],
         [
             'name' => 'knowledge.json',
             'href' => 'output/json/knowledge.json',
-            'description' => 'Raw exported entities',
+            'description' => 'Raw exported entities (+ keyword_coverage)',
         ],
         [
             'name' => 'manifest.json',

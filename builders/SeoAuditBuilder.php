@@ -14,7 +14,7 @@ class SeoAuditBuilder
     private const DESC_MIN_CHARS = 70;
     private const DESC_MAX_CHARS = 160;
 
-    public function build(array $knowledge, array $brain = []): array
+    public function build(array $knowledge, array $brain = [], array $keywordMap = []): array
     {
         $findings = [];
 
@@ -24,15 +24,19 @@ class SeoAuditBuilder
         $findings = array_merge(
             $findings,
             $this->auditSiteVisibility($siteProfile),
+            $this->auditPluginGlobalNoindex($siteProfile),
             $this->auditMissingSeoFields($urlables),
             $this->auditSeoFieldLengths($urlables),
             $this->auditCanonicals($urlables),
             $this->auditDuplicateSeoFields($urlables),
-            $this->auditKeywordCannibalization($urlables),
+            $this->auditKeywordCannibalization($urlables, $keywordMap),
+            $this->auditKeywordCoverage($urlables),
+            $this->auditFaqSchemaGaps($urlables),
             $this->auditHeadingStructure($urlables),
             $this->auditProductMedia($knowledge['products'] ?? []),
             $this->auditThinCategories($knowledge['categories'] ?? []),
             $this->auditCategoryContentGaps($knowledge['categories'] ?? []),
+            $this->auditTopicGaps($knowledge, $brain),
             $this->auditDuplicateShortDescriptions($knowledge['products'] ?? []),
             $this->auditStalePosts($knowledge['posts'] ?? []),
             $this->auditOrphans($brain),
@@ -41,8 +45,12 @@ class SeoAuditBuilder
             $this->auditUnexpectedNoindex($urlables, $siteProfile),
             $this->auditProductIdentifiers($knowledge['products'] ?? []),
             $this->auditProductReviews($knowledge['products'] ?? []),
+            $this->auditProductSchemaEssentials($knowledge['products'] ?? []),
+            $this->auditVariationGaps($knowledge['products'] ?? []),
             $this->auditUnresolvedInternalLinks($brain),
-            $this->auditWeakHubs($brain)
+            $this->auditWeakHubs($brain),
+            $this->auditLinkOpportunities($brain),
+            $this->auditAnchorKeywordMismatch($brain, $keywordMap)
         );
 
         usort(
@@ -140,12 +148,15 @@ class SeoAuditBuilder
                     'url' => (string)($entity['basic']['url'] ?? ''),
                     'updated_at' => (string)($entity['basic']['updated_at'] ?? ''),
                     'word_count' => (int)($entity['content']['word_count'] ?? 0),
+                    'basic' => $entity['basic'] ?? [],
+                    'content' => $entity['content'] ?? [],
                     'seo' => $entity['seo'] ?? [],
                     'structure' => $entity['structure'] ?? [],
                     'media' => $entity['media'] ?? [],
                     'identifiers' => $entity['identifiers'] ?? [],
                     'ratings' => $entity['ratings'] ?? [],
                     'reviews' => $entity['reviews'] ?? [],
+                    'total_sales' => (int)($entity['basic']['total_sales'] ?? 0),
                 ];
             }
         }
@@ -158,22 +169,21 @@ class SeoAuditBuilder
                 'url' => (string)($entity['basic']['url'] ?? ''),
                 'updated_at' => '',
                 'word_count' => (int)($entity['content']['word_count'] ?? 0),
+                'basic' => $entity['basic'] ?? [],
+                'content' => $entity['content'] ?? [],
                 'seo' => $entity['seo'] ?? [],
                 'structure' => $entity['structure'] ?? [],
                 'media' => $entity['media'] ?? [],
                 'identifiers' => [],
                 'ratings' => [],
                 'reviews' => [],
+                'total_sales' => 0,
             ];
         }
 
         return $items;
     }
 
-    /**
-     * @param list<array<string,mixed>> $items
-     * @return list<array<string,mixed>>
-     */
     /**
      * @return list<array<string,mixed>>
      */
@@ -439,19 +449,65 @@ class SeoAuditBuilder
      * @param list<array<string,mixed>> $items
      * @return list<array<string,mixed>>
      */
-    private function auditKeywordCannibalization(array $items): array
+    private function auditKeywordCannibalization(array $items, array $keywordMap = []): array
     {
+        $findings = [];
+        $emitted = [];
+
+        if (!empty($keywordMap['cannibalization']) && is_array($keywordMap['cannibalization'])) {
+            foreach ($keywordMap['cannibalization'] as $group) {
+                $entities = $group['entities'] ?? [];
+                if (count($entities) < 2) {
+                    continue;
+                }
+
+                $match = (string)($group['match'] ?? 'exact_normalized');
+                $severity = $match === 'fuzzy' ? 'warning' : 'critical';
+                $type = $match === 'fuzzy' ? 'keyword_cannibalization_fuzzy' : 'keyword_cannibalization';
+
+                foreach ($entities as $ent) {
+                    $item = [
+                        'entity_type' => (string)($ent['entity_type'] ?? 'unknown'),
+                        'entity_id' => (int)($ent['entity_id'] ?? 0),
+                        'title' => '',
+                        'url' => (string)($ent['url'] ?? ''),
+                    ];
+                    $fid = $item['entity_type'] . ':' . $item['entity_id'] . ':' . $type;
+                    if (isset($emitted[$fid])) {
+                        continue;
+                    }
+                    $emitted[$fid] = true;
+
+                    $findings[] = $this->finding(
+                        $item,
+                        $type,
+                        $severity,
+                        'resolve_keyword_cannibalization',
+                        $match === 'fuzzy'
+                            ? 'Similar focus keywords compete across multiple published URLs.'
+                            : 'Focus keyword is used on multiple published URLs.',
+                        [
+                            'focus_keyword' => $group['keyword'] ?? '',
+                            'related_keywords' => $group['related_keywords'] ?? [],
+                            'match' => $match,
+                            'competing_urls' => $group['urls'] ?? [],
+                        ]
+                    );
+                }
+            }
+
+            return $findings;
+        }
+
         $byKeyword = [];
 
         foreach ($items as $item) {
-            $keyword = mb_strtolower(trim((string)($item['seo']['focus_keyword'] ?? '')));
+            $keyword = TextMetrics::normalizeKeyword((string)($item['seo']['focus_keyword'] ?? ''));
             if ($keyword === '') {
                 continue;
             }
             $byKeyword[$keyword][] = $item;
         }
-
-        $findings = [];
 
         foreach ($byKeyword as $keyword => $group) {
             if (count($group) < 2) {
@@ -471,6 +527,179 @@ class SeoAuditBuilder
                     ]
                 );
             }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    private function auditKeywordCoverage(array $items): array
+    {
+        $findings = [];
+
+        foreach ($items as $item) {
+            if (($item['entity_type'] ?? '') === 'category') {
+                continue;
+            }
+
+            $primary = trim((string)($item['seo']['focus_keyword'] ?? ''));
+            if ($primary === '') {
+                continue;
+            }
+
+            $coverage = $item['seo']['keyword_coverage'] ?? null;
+            if (!is_array($coverage)) {
+                $coverage = $this->inlineCoverage($item, $primary);
+            }
+
+            $score = (int)($coverage['score'] ?? 0);
+            $missing = [];
+            foreach (['in_title', 'in_meta', 'in_slug', 'in_first_paragraph', 'in_h2', 'in_image_alt'] as $flag) {
+                if (empty($coverage[$flag])) {
+                    $missing[] = $flag;
+                }
+            }
+
+            if ($score >= 70 && count($missing) <= 2) {
+                continue;
+            }
+
+            $findings[] = $this->finding(
+                $item,
+                'weak_keyword_coverage',
+                $score < 40 ? 'warning' : 'opportunity',
+                'improve_keyword_placement',
+                'Focus keyword is weakly placed across title/meta/slug/body/headings/alt.',
+                [
+                    'focus_keyword' => $primary,
+                    'coverage_score' => $score,
+                    'missing' => $missing,
+                    'coverage' => $coverage,
+                ]
+            );
+
+            $secondary = $item['seo']['secondary_keywords'] ?? [];
+            if (!is_array($secondary) || $secondary === []) {
+                continue;
+            }
+
+            $body = (string)($item['content']['content']
+                ?? $item['content']['description']
+                ?? '');
+            $headingText = '';
+            foreach ($item['structure']['headings'] ?? [] as $h) {
+                $headingText .= ' ' . (string)($h['text'] ?? '');
+            }
+
+            $uncovered = [];
+            foreach ($secondary as $sk) {
+                $sk = trim((string)$sk);
+                if ($sk === '') {
+                    continue;
+                }
+                if (
+                    !TextMetrics::textContainsKeyword($body, $sk)
+                    && !TextMetrics::textContainsKeyword($headingText, $sk)
+                ) {
+                    $uncovered[] = $sk;
+                }
+            }
+
+            if ($uncovered !== []) {
+                $findings[] = $this->finding(
+                    $item,
+                    'secondary_keywords_uncovered',
+                    'opportunity',
+                    'cover_secondary_keywords',
+                    'Secondary keywords are not visible in body/headings.',
+                    ['uncovered' => array_slice($uncovered, 0, 5)]
+                );
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function inlineCoverage(array $item, string $primary): array
+    {
+        $seo = $item['seo'] ?? [];
+        $title = (string)($seo['resolved_title'] ?? $seo['title'] ?? $item['title'] ?? '');
+        $meta = (string)($seo['resolved_description'] ?? $seo['description'] ?? '');
+        $slug = str_replace(['-', '_'], ' ', (string)($item['basic']['slug'] ?? ''));
+        $body = (string)($item['content']['content'] ?? $item['content']['description'] ?? '');
+        $first = mb_substr($body, 0, 400, 'UTF-8');
+
+        $inH2 = false;
+        foreach ($item['structure']['headings'] ?? [] as $heading) {
+            if ((int)($heading['level'] ?? 0) === 2
+                && TextMetrics::textContainsKeyword((string)($heading['text'] ?? ''), $primary)
+            ) {
+                $inH2 = true;
+                break;
+            }
+        }
+
+        $checks = [
+            'in_title' => TextMetrics::textContainsKeyword($title, $primary),
+            'in_meta' => TextMetrics::textContainsKeyword($meta, $primary),
+            'in_slug' => TextMetrics::textContainsKeyword($slug, $primary),
+            'in_first_paragraph' => TextMetrics::textContainsKeyword($first, $primary),
+            'in_h2' => $inH2,
+            'in_image_alt' => false,
+        ];
+        $passed = count(array_filter($checks));
+
+        return array_merge($checks, [
+            'score' => (int)round(($passed / max(1, count($checks))) * 100),
+            'has_primary' => true,
+        ]);
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    private function auditFaqSchemaGaps(array $items): array
+    {
+        $findings = [];
+
+        foreach ($items as $item) {
+            $faqs = $item['structure']['faq_candidates'] ?? [];
+            if (!is_array($faqs) || count($faqs) < 2) {
+                continue;
+            }
+
+            $schema = $item['seo']['schema_types'] ?? [];
+            $hasFaqSchema = false;
+            foreach ($schema as $type) {
+                if (stripos((string)$type, 'faq') !== false) {
+                    $hasFaqSchema = true;
+                    break;
+                }
+            }
+
+            if ($hasFaqSchema) {
+                continue;
+            }
+
+            $findings[] = $this->finding(
+                $item,
+                'faq_candidates_without_schema',
+                'opportunity',
+                'add_faq_schema',
+                'Content has FAQ-like blocks but no FAQ schema type is declared in plugin meta.',
+                [
+                    'faq_candidate_count' => count($faqs),
+                    'schema_types' => $schema,
+                    'note' => 'schema_types reflects plugin claims, not necessarily rendered JSON-LD.',
+                ]
+            );
         }
 
         return $findings;
@@ -509,14 +738,30 @@ class SeoAuditBuilder
             }
 
             if ($h1Count === 0) {
-                $findings[] = $this->finding(
-                    $item,
-                    'missing_h1',
-                    'warning',
-                    'add_h1',
-                    'Content has no H1 heading.',
-                    ['h1_count' => $h1Count, 'heading_count' => count($headings)]
-                );
+                $title = trim((string)($item['title'] ?? ''));
+                if ($title !== '') {
+                    $findings[] = $this->finding(
+                        $item,
+                        'h1_likely_from_theme',
+                        'opportunity',
+                        'verify_theme_h1',
+                        'No H1 in stored content HTML; themes usually output the post title as H1. Verify in the rendered page.',
+                        [
+                            'h1_count' => $h1Count,
+                            'heading_count' => count($headings),
+                            'likely_theme_h1' => $title,
+                        ]
+                    );
+                } else {
+                    $findings[] = $this->finding(
+                        $item,
+                        'missing_h1',
+                        'warning',
+                        'add_h1',
+                        'Content has no H1 heading and no usable title fallback.',
+                        ['h1_count' => $h1Count, 'heading_count' => count($headings)]
+                    );
+                }
             } elseif ($h1Count > 1) {
                 $findings[] = $this->finding(
                     $item,
@@ -566,6 +811,7 @@ class SeoAuditBuilder
             $item = $this->productAsItem($product);
             $featured = $product['media']['featured'] ?? [];
             $hasImage = !empty($featured['id']) || !empty($featured['url']);
+            $sales = (int)($product['basic']['total_sales'] ?? 0);
 
             if (!$hasImage) {
                 $findings[] = $this->finding(
@@ -574,7 +820,13 @@ class SeoAuditBuilder
                     'critical',
                     'add_product_image',
                     'Product has no featured image.',
-                    ['featured' => $featured]
+                    [
+                        'featured' => $featured,
+                        'total_sales' => $sales,
+                        'priority_note' => $sales >= 10
+                            ? 'High-sales product — fix before lower-traffic SKUs.'
+                            : null,
+                    ]
                 );
                 continue;
             }
@@ -1219,6 +1471,369 @@ class SeoAuditBuilder
                     'outgoing_count' => $hub['outgoing_count'] ?? 0,
                 ]
             );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditPluginGlobalNoindex(array $siteProfile): array
+    {
+        $globals = $siteProfile['seo_plugin_globals'] ?? [];
+        if (!is_array($globals) || $globals === []) {
+            return [];
+        }
+
+        $findings = [];
+        $item = [
+            'entity_type' => 'site',
+            'entity_id' => 0,
+            'title' => (string)($siteProfile['identity']['name'] ?? 'site'),
+            'url' => (string)($siteProfile['identity']['url'] ?? ''),
+        ];
+
+        foreach ($globals['noindex_types'] ?? [] as $type => $flag) {
+            if (!$flag) {
+                continue;
+            }
+            $findings[] = $this->finding(
+                $item,
+                'global_noindex_content_type',
+                'critical',
+                'review_global_noindex',
+                'SEO plugin global settings mark a content type as noindex.',
+                [
+                    'content_type' => $type,
+                    'plugin' => $globals['plugin'] ?? null,
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditTopicGaps(array $knowledge, array $brain): array
+    {
+        $findings = [];
+        $clusters = $brain['content_clusters'] ?? $knowledge['content_clusters'] ?? [];
+
+        foreach ($clusters as $cluster) {
+            $productCount = count($cluster['products'] ?? []);
+            $postCount = count($cluster['posts'] ?? []);
+            $categoryId = (int)($cluster['category_id'] ?? 0);
+            $name = (string)($cluster['category'] ?? '');
+
+            if ($productCount < 5) {
+                continue;
+            }
+
+            if ($postCount === 0) {
+                $findings[] = $this->finding(
+                    [
+                        'entity_type' => 'category',
+                        'entity_id' => $categoryId,
+                        'title' => $name,
+                        'url' => (string)($cluster['url'] ?? ''),
+                    ],
+                    'category_missing_buying_guide',
+                    'opportunity',
+                    'create_buying_guide_post',
+                    'Large product category has no related blog/guide posts in its cluster.',
+                    [
+                        'product_count' => $productCount,
+                        'post_count' => $postCount,
+                        'slug' => $cluster['slug'] ?? '',
+                    ]
+                );
+            }
+
+            if (empty($cluster['target_keywords']) && empty($cluster['pillars'])) {
+                $findings[] = $this->finding(
+                    [
+                        'entity_type' => 'category',
+                        'entity_id' => $categoryId,
+                        'title' => $name,
+                        'url' => (string)($cluster['url'] ?? ''),
+                    ],
+                    'topic_gap_no_pillar',
+                    'opportunity',
+                    'designate_pillar_content',
+                    'Topic cluster has no cornerstone/pillar content detected.',
+                    [
+                        'product_count' => $productCount,
+                        'post_count' => $postCount,
+                        'avg_word_count' => $cluster['avg_word_count'] ?? null,
+                    ]
+                );
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $products
+     * @return list<array<string,mixed>>
+     */
+    private function auditProductSchemaEssentials(array $products): array
+    {
+        $findings = [];
+
+        foreach ($products as $product) {
+            $status = (string)($product['basic']['status'] ?? '');
+            if ($status !== '' && $status !== 'publish') {
+                continue;
+            }
+
+            $sales = (int)($product['basic']['total_sales'] ?? 0);
+            $wordCount = (int)($product['content']['word_count'] ?? 0);
+            if ($sales < 1 && $wordCount < self::KEY_PRODUCT_MIN_WORDS) {
+                continue;
+            }
+
+            $item = $this->productAsItem($product);
+            $missing = [];
+
+            $brand = trim((string)($product['identifiers']['brand'] ?? ''));
+            $gtin = trim((string)($product['identifiers']['gtin'] ?? ''));
+            $ean = trim((string)($product['identifiers']['ean'] ?? ''));
+            $mpn = trim((string)($product['identifiers']['mpn'] ?? ''));
+            $price = trim((string)($product['pricing']['price'] ?? ''));
+            $hasImage = !empty($product['media']['featured']['id']) || !empty($product['media']['featured']['url']);
+            $reviewCount = (int)($product['ratings']['review_count'] ?? count($product['reviews'] ?? []));
+
+            if ($brand === '') {
+                $missing[] = 'brand';
+            }
+            if ($gtin === '' && $ean === '' && $mpn === '') {
+                $missing[] = 'gtin_or_mpn';
+            }
+            if (!$hasImage) {
+                $missing[] = 'image';
+            }
+            if ($price === '' || !is_numeric($price)) {
+                $missing[] = 'price';
+            }
+            if ($reviewCount <= 0) {
+                $missing[] = 'reviews';
+            }
+
+            if (count($missing) < 2) {
+                continue;
+            }
+
+            $severity = $sales >= 10 ? 'warning' : 'opportunity';
+
+            $findings[] = $this->finding(
+                $item,
+                'product_schema_essentials_incomplete',
+                $severity,
+                'complete_product_schema_fields',
+                'Product is missing multiple fields commonly needed for rich Product results.',
+                [
+                    'missing' => $missing,
+                    'total_sales' => $sales,
+                    'word_count' => $wordCount,
+                    'schema_types' => $product['seo']['schema_types'] ?? [],
+                    'note' => 'Heuristic checklist — not a live rich-result test.',
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $products
+     * @return list<array<string,mixed>>
+     */
+    private function auditVariationGaps(array $products): array
+    {
+        $findings = [];
+
+        foreach ($products as $product) {
+            if ((string)($product['basic']['type'] ?? '') !== 'variable') {
+                continue;
+            }
+            $status = (string)($product['basic']['status'] ?? '');
+            if ($status !== '' && $status !== 'publish') {
+                continue;
+            }
+
+            $sales = (int)($product['basic']['total_sales'] ?? 0);
+            $variations = $product['variations'] ?? [];
+            if (!is_array($variations) || $variations === []) {
+                continue;
+            }
+
+            $missingGtin = 0;
+            foreach ($variations as $variation) {
+                $vGtin = trim((string)($variation['gtin'] ?? ''));
+                if ($vGtin === '') {
+                    $missingGtin++;
+                }
+            }
+
+            if ($missingGtin === 0) {
+                continue;
+            }
+
+            if ($sales < 1 && count($variations) < 3) {
+                continue;
+            }
+
+            $item = $this->productAsItem($product);
+            $findings[] = $this->finding(
+                $item,
+                'variable_product_missing_variation_gtin',
+                $sales >= 5 ? 'warning' : 'opportunity',
+                'add_variation_identifiers',
+                'Variable product has variations without GTIN.',
+                [
+                    'variation_count' => count($variations),
+                    'missing_gtin_count' => $missingGtin,
+                    'total_sales' => $sales,
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditLinkOpportunities(array $brain): array
+    {
+        $findings = [];
+        $opportunities = $brain['link_analysis']['link_opportunities']
+            ?? $brain['knowledge_graph']['internal_link_graph']['analysis']['link_opportunities']
+            ?? [];
+
+        foreach (array_slice($opportunities, 0, 40) as $opp) {
+            $item = [
+                'entity_type' => (string)($opp['entity_type'] ?? 'unknown'),
+                'entity_id' => (int)($opp['entity_id'] ?? $opp['id'] ?? 0),
+                'title' => (string)($opp['title'] ?? ''),
+                'url' => (string)($opp['url'] ?? ''),
+            ];
+
+            $findings[] = $this->finding(
+                $item,
+                'suggested_internal_link',
+                'opportunity',
+                'add_suggested_internal_links',
+                'Suggested internal link sources exist for this under-linked URL.',
+                [
+                    'suggested_sources' => array_slice($opp['suggested_sources'] ?? [], 0, 5),
+                    'suggested_anchor' => $opp['suggested_anchor'] ?? '',
+                    'reason' => $opp['reason'] ?? 'same_cluster_or_orphan',
+                ]
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private function auditAnchorKeywordMismatch(array $brain, array $keywordMap): array
+    {
+        $findings = [];
+        $targetsByUrl = [];
+        foreach ($keywordMap['url_targets'] ?? [] as $t) {
+            $u = $this->normalizeUrl((string)($t['url'] ?? ''));
+            if ($u !== '') {
+                $targetsByUrl[$u] = $t;
+            }
+        }
+
+        foreach ($brain['link_analysis']['duplicate_anchors'] ?? [] as $page) {
+            foreach ($page['duplicates'] ?? [] as $dup) {
+                $targets = $dup['targets'] ?? [];
+                if (count($targets) < 2) {
+                    continue;
+                }
+                $item = [
+                    'entity_type' => (string)($page['entity_type'] ?? 'unknown'),
+                    'entity_id' => (int)($page['id'] ?? 0),
+                    'title' => (string)($page['title'] ?? ''),
+                    'url' => (string)($page['url'] ?? ''),
+                ];
+                $findings[] = $this->finding(
+                    $item,
+                    'duplicate_anchor_text',
+                    'opportunity',
+                    'diversify_anchor_text',
+                    'Same anchor text points to multiple different targets on one page.',
+                    [
+                        'anchor' => $dup['anchor'] ?? '',
+                        'count' => $dup['count'] ?? count($targets),
+                        'targets' => $targets,
+                    ]
+                );
+            }
+        }
+
+        // Sample outgoing links from nodes for anchor vs target focus mismatch
+        $nodes = $brain['knowledge_graph']['internal_link_graph']['nodes']
+            ?? $brain['link_analysis']['nodes']
+            ?? [];
+
+        $checked = 0;
+        foreach ($nodes as $node) {
+            if ($checked >= 80) {
+                break;
+            }
+            foreach ($node['outgoing_links'] ?? [] as $link) {
+                $targetUrl = $this->normalizeUrl((string)($link['target_url'] ?? ''));
+                $anchor = trim((string)($link['anchor'] ?? ''));
+                if ($targetUrl === '' || $anchor === '' || mb_strlen($anchor, 'UTF-8') < 3) {
+                    continue;
+                }
+                $target = $targetsByUrl[$targetUrl] ?? null;
+                $primary = trim((string)($target['primary'] ?? ''));
+                if ($primary === '') {
+                    continue;
+                }
+                if (TextMetrics::textContainsKeyword($anchor, $primary)) {
+                    continue;
+                }
+                // Only flag generic anchors
+                $generic = ['اینجا', 'اینجا کلیک کنید', 'کلیک کنید', 'بیشتر', 'more', 'click here', 'here', 'read more', 'ادامه مطلب'];
+                $anchorNorm = TextMetrics::normalizeKeyword($anchor);
+                $isGeneric = in_array($anchorNorm, array_map([TextMetrics::class, 'normalizeKeyword'], $generic), true);
+                if (!$isGeneric) {
+                    continue;
+                }
+
+                $item = [
+                    'entity_type' => (string)($node['entity_type'] ?? 'unknown'),
+                    'entity_id' => (int)($node['id'] ?? 0),
+                    'title' => (string)($node['title'] ?? ''),
+                    'url' => (string)($node['url'] ?? ''),
+                ];
+                $findings[] = $this->finding(
+                    $item,
+                    'generic_anchor_for_keyworded_target',
+                    'opportunity',
+                    'improve_anchor_text',
+                    'Generic anchor text links to a page that has a focus keyword — prefer descriptive anchors.',
+                    [
+                        'anchor' => $anchor,
+                        'target_url' => $link['target_url'] ?? '',
+                        'target_focus_keyword' => $primary,
+                    ]
+                );
+                $checked++;
+                break;
+            }
         }
 
         return $findings;

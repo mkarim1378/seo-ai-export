@@ -1,5 +1,7 @@
 /output/
 /dist/
+/input/*.csv
+!/input/.gitkeep
 .cursor/
 *.log
 .DS_Store

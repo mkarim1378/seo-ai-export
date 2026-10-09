@@ -6,6 +6,8 @@ class InternalLinkGraphBuilder
 {
     private const WEAK_HUB_MIN_WORDS = 300;
     private const WEAK_HUB_MAX_OUTGOING = 1;
+    private const MAX_LINK_OPPORTUNITIES = 80;
+    private const MAX_SOURCES_PER_OPP = 5;
 
     /**
      * @param array<int,int> $menuObjectIds object_id => 1
@@ -17,17 +19,26 @@ class InternalLinkGraphBuilder
         }
 
         $nodes = [];
+        $urlIndex = [];
 
         foreach ($this->collectEntities($knowledge) as $entity) {
-            $nodes[$entity['id']] = $entity;
+            $key = $this->nodeKey($entity['entity_type'], (int)$entity['id']);
+            $nodes[$key] = $entity;
+            $norm = $this->normalizeUrl((string)$entity['url']);
+            if ($norm !== '') {
+                $urlIndex[$norm] = $key;
+            }
         }
 
+        $this->resolveOutgoingTargets($nodes, $urlIndex);
         $this->attachIncoming($nodes);
         $this->flagOrphansAndHubs($nodes, $menuObjectIds);
+        $this->attachCrawlDepth($nodes, $knowledge, $menuObjectIds);
 
         $deadLinks = $this->collectDeadLinks($nodes);
         $duplicateAnchors = $this->collectDuplicateAnchors($nodes);
         $linksByCategory = $this->linksByCategory($nodes);
+        $linkOpportunities = $this->buildLinkOpportunities($nodes, $knowledge);
 
         $orphans = [];
         $weakHubs = [];
@@ -39,6 +50,7 @@ class InternalLinkGraphBuilder
                     'entity_type' => $node['entity_type'],
                     'title' => $node['title'],
                     'url' => $node['url'],
+                    'crawl_depth' => $node['crawl_depth'] ?? null,
                 ];
             }
 
@@ -66,14 +78,25 @@ class InternalLinkGraphBuilder
                     'weak_hub_count' => count($weakHubs),
                     'dead_link_count' => count($deadLinks),
                     'duplicate_anchor_pages' => count($duplicateAnchors),
+                    'link_opportunity_count' => count($linkOpportunities),
+                    'category_node_count' => count(array_filter(
+                        $nodeList,
+                        static fn(array $n): bool => ($n['entity_type'] ?? '') === 'category'
+                    )),
                 ],
                 'orphans' => $orphans,
                 'weak_hubs' => $weakHubs,
                 'dead_internal_links' => $deadLinks,
                 'duplicate_anchors' => $duplicateAnchors,
                 'links_by_category' => $linksByCategory,
+                'link_opportunities' => $linkOpportunities,
             ],
         ];
+    }
+
+    private function nodeKey(string $type, int $id): string
+    {
+        return $type . ':' . $id;
     }
 
     /**
@@ -99,14 +122,18 @@ class InternalLinkGraphBuilder
 
                 $entities[] = [
                     'id' => $id,
+                    'node_key' => $this->nodeKey($type, $id),
                     'entity_type' => $type,
                     'title' => (string)($item['basic']['title'] ?? ''),
                     'url' => (string)($item['basic']['url'] ?? ''),
                     'status' => (string)($item['basic']['status'] ?? ''),
                     'word_count' => (int)($item['content']['word_count'] ?? 0),
+                    'focus_keyword' => (string)($item['seo']['focus_keyword'] ?? ''),
+                    'is_cornerstone' => !empty($item['seo']['is_cornerstone']),
                     'categories' => $this->categoryLabels(
                         $item['taxonomy']['categories'] ?? []
                     ),
+                    'category_ids' => $this->categoryIds($item['taxonomy']['categories'] ?? []),
                     'outgoing_links' => $outgoing,
                     'outgoing_count' => count($outgoing),
                     'incoming_count' => 0,
@@ -114,8 +141,41 @@ class InternalLinkGraphBuilder
                     'in_menu' => false,
                     'is_orphan' => false,
                     'is_hub_weak' => false,
+                    'crawl_depth' => null,
                 ];
             }
+        }
+
+        foreach ($knowledge['categories'] ?? [] as $category) {
+            $id = (int)($category['basic']['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+
+            $entities[] = [
+                'id' => $id,
+                'node_key' => $this->nodeKey('category', $id),
+                'entity_type' => 'category',
+                'title' => (string)($category['basic']['name'] ?? ''),
+                'url' => (string)($category['basic']['url'] ?? ''),
+                'status' => 'publish',
+                'word_count' => (int)($category['content']['word_count'] ?? 0),
+                'focus_keyword' => (string)($category['seo']['focus_keyword'] ?? ''),
+                'is_cornerstone' => false,
+                'categories' => [(string)($category['basic']['name'] ?? '')],
+                'category_ids' => [$id],
+                'outgoing_links' => $this->normalizeLinks($category['structure']['internal_links'] ?? []),
+                'outgoing_count' => 0,
+                'incoming_count' => 0,
+                'incoming_from' => [],
+                'in_menu' => false,
+                'is_orphan' => false,
+                'is_hub_weak' => false,
+                'crawl_depth' => null,
+            ];
+            $entities[array_key_last($entities)]['outgoing_count'] = count(
+                $entities[array_key_last($entities)]['outgoing_links']
+            );
         }
 
         return $entities;
@@ -145,7 +205,26 @@ class InternalLinkGraphBuilder
     }
 
     /**
-     * @return list<array{target_id:int,target_url:string,anchor:string}>
+     * @param list<mixed> $categories
+     * @return list<int>
+     */
+    private function categoryIds(array $categories): array
+    {
+        $ids = [];
+        foreach ($categories as $category) {
+            if (is_array($category)) {
+                $id = (int)($category['id'] ?? 0);
+                if ($id > 0) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @return list<array{target_id:int,target_url:string,anchor:string,target_key?:string,target_type?:string}>
      */
     private function resolveOutgoing(array $entity, string $type): array
     {
@@ -182,11 +261,57 @@ class InternalLinkGraphBuilder
             $normalized[] = [
                 'target_id' => $targetId,
                 'target_url' => $url,
-                'anchor' => ai_clean_text((string)($link['anchor'] ?? '')),
+                'anchor' => function_exists('ai_clean_text')
+                    ? ai_clean_text((string)($link['anchor'] ?? ''))
+                    : trim(strip_tags((string)($link['anchor'] ?? ''))),
+                'target_key' => '',
+                'target_type' => '',
             ];
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param array<string,array<string,mixed>> $nodes
+     * @param array<string,string> $urlIndex
+     */
+    private function resolveOutgoingTargets(array &$nodes, array $urlIndex): void
+    {
+        $postTypeMap = [];
+        foreach ($nodes as $key => $node) {
+            if (in_array($node['entity_type'], ['post', 'page', 'product'], true)) {
+                $postTypeMap[(int)$node['id']] = $key;
+            }
+        }
+
+        foreach ($nodes as &$node) {
+            foreach ($node['outgoing_links'] as &$link) {
+                $targetId = (int)($link['target_id'] ?? 0);
+                $url = (string)($link['target_url'] ?? '');
+                $norm = $this->normalizeUrl($url);
+
+                if ($targetId > 0 && isset($postTypeMap[$targetId])) {
+                    $link['target_key'] = $postTypeMap[$targetId];
+                    $link['target_type'] = $nodes[$postTypeMap[$targetId]]['entity_type'];
+                    continue;
+                }
+
+                if ($norm !== '' && isset($urlIndex[$norm])) {
+                    $key = $urlIndex[$norm];
+                    $link['target_key'] = $key;
+                    $link['target_type'] = $nodes[$key]['entity_type'] ?? '';
+                    $link['target_id'] = (int)($nodes[$key]['id'] ?? 0);
+                    continue;
+                }
+
+                $link['target_key'] = '';
+                $link['target_type'] = '';
+            }
+            unset($link);
+            $node['outgoing_count'] = count($node['outgoing_links']);
+        }
+        unset($node);
     }
 
     /**
@@ -267,7 +392,11 @@ class InternalLinkGraphBuilder
             $links[] = [
                 'target_id' => $targetId,
                 'target_url' => $url,
-                'anchor' => ai_clean_text($match[2] ?? ''),
+                'anchor' => function_exists('ai_clean_text')
+                    ? ai_clean_text($match[2] ?? '')
+                    : trim(strip_tags($match[2] ?? '')),
+                'target_key' => '',
+                'target_type' => '',
             ];
         }
 
@@ -275,25 +404,25 @@ class InternalLinkGraphBuilder
     }
 
     /**
-     * @param array<int,array<string,mixed>> $nodes
+     * @param array<string,array<string,mixed>> $nodes
      */
     private function attachIncoming(array &$nodes): void
     {
-        foreach ($nodes as $sourceId => $node) {
+        foreach ($nodes as $sourceKey => $node) {
             foreach ($node['outgoing_links'] as $link) {
-                $targetId = (int)($link['target_id'] ?? 0);
+                $targetKey = (string)($link['target_key'] ?? '');
 
-                if ($targetId <= 0 || !isset($nodes[$targetId])) {
+                if ($targetKey === '' || !isset($nodes[$targetKey])) {
                     continue;
                 }
 
-                $nodes[$targetId]['incoming_from'][] = (int)$sourceId;
+                $nodes[$targetKey]['incoming_from'][] = $sourceKey;
             }
         }
 
         foreach ($nodes as &$node) {
             $node['incoming_from'] = array_values(array_unique(
-                array_map('intval', $node['incoming_from'])
+                array_map('strval', $node['incoming_from'])
             ));
             $node['incoming_count'] = count($node['incoming_from']);
         }
@@ -301,19 +430,21 @@ class InternalLinkGraphBuilder
     }
 
     /**
-     * @param array<int,array<string,mixed>> $nodes
+     * @param array<string,array<string,mixed>> $nodes
      * @param array<int,int> $menuObjectIds
      */
     private function flagOrphansAndHubs(array &$nodes, array $menuObjectIds): void
     {
         foreach ($nodes as &$node) {
-            $inMenu = isset($menuObjectIds[(int)$node['id']]);
+            $inMenu = isset($menuObjectIds[(int)$node['id']])
+                && in_array($node['entity_type'], ['post', 'page', 'product'], true);
             $node['in_menu'] = $inMenu;
 
             $isPublished = ($node['status'] === 'publish' || $node['status'] === '');
             $node['is_orphan'] = $isPublished
                 && (int)$node['incoming_count'] === 0
-                && !$inMenu;
+                && !$inMenu
+                && $node['entity_type'] !== 'category';
 
             $isImportantType = in_array($node['entity_type'], ['post', 'product', 'page'], true);
             $node['is_hub_weak'] = $isImportantType
@@ -325,7 +456,66 @@ class InternalLinkGraphBuilder
     }
 
     /**
-     * @param array<int,array<string,mixed>> $nodes
+     * @param array<string,array<string,mixed>> $nodes
+     * @param array<int,int> $menuObjectIds
+     */
+    private function attachCrawlDepth(array &$nodes, array $knowledge, array $menuObjectIds): void
+    {
+        $queue = [];
+        $frontId = function_exists('get_option') ? (int)get_option('page_on_front') : 0;
+        if ($frontId > 0) {
+            foreach (['page', 'post', 'product'] as $type) {
+                $key = $this->nodeKey($type, $frontId);
+                if (isset($nodes[$key])) {
+                    $queue[] = [$key, 0];
+                    break;
+                }
+            }
+        }
+
+        // Home URL match
+        if ($queue === [] && function_exists('home_url')) {
+            $homeNorm = $this->normalizeUrl(home_url('/'));
+            foreach ($nodes as $key => $node) {
+                if ($this->normalizeUrl((string)$node['url']) === $homeNorm) {
+                    $queue[] = [$key, 0];
+                    break;
+                }
+            }
+        }
+
+        foreach ($menuObjectIds as $objectId => $_) {
+            foreach (['page', 'post', 'product'] as $type) {
+                $key = $this->nodeKey($type, (int)$objectId);
+                if (isset($nodes[$key])) {
+                    $queue[] = [$key, 1];
+                }
+            }
+        }
+
+        $visited = [];
+        while ($queue !== []) {
+            [$key, $depth] = array_shift($queue);
+            if (isset($visited[$key])) {
+                continue;
+            }
+            $visited[$key] = true;
+            if (!isset($nodes[$key])) {
+                continue;
+            }
+            $nodes[$key]['crawl_depth'] = $depth;
+
+            foreach ($nodes[$key]['outgoing_links'] as $link) {
+                $tk = (string)($link['target_key'] ?? '');
+                if ($tk !== '' && !isset($visited[$tk])) {
+                    $queue[] = [$tk, $depth + 1];
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array<string,array<string,mixed>> $nodes
      * @return list<array<string,mixed>>
      */
     private function collectDeadLinks(array $nodes): array
@@ -334,12 +524,11 @@ class InternalLinkGraphBuilder
 
         foreach ($nodes as $node) {
             foreach ($node['outgoing_links'] as $link) {
+                $targetKey = (string)($link['target_key'] ?? '');
                 $targetId = (int)($link['target_id'] ?? 0);
                 $targetUrl = (string)($link['target_url'] ?? '');
 
-                $isDead = $targetId <= 0 || !isset($nodes[$targetId]);
-
-                if (!$isDead) {
+                if ($targetKey !== '' && isset($nodes[$targetKey])) {
                     continue;
                 }
 
@@ -350,7 +539,9 @@ class InternalLinkGraphBuilder
                     'anchor' => $link['anchor'] ?? '',
                     'target_id' => $targetId,
                     'target_url' => $targetUrl,
-                    'reason' => $targetId <= 0 ? 'unresolved_target' : 'missing_target_entity',
+                    'reason' => $targetId > 0 && $targetKey === ''
+                        ? 'missing_target_entity'
+                        : 'unresolved_target',
                 ];
             }
         }
@@ -359,7 +550,7 @@ class InternalLinkGraphBuilder
     }
 
     /**
-     * @param array<int,array<string,mixed>> $nodes
+     * @param array<string,array<string,mixed>> $nodes
      * @return list<array<string,mixed>>
      */
     private function collectDuplicateAnchors(array $nodes): array
@@ -413,7 +604,7 @@ class InternalLinkGraphBuilder
     }
 
     /**
-     * @param array<int,array<string,mixed>> $nodes
+     * @param array<string,array<string,mixed>> $nodes
      * @return list<array<string,mixed>>
      */
     private function linksByCategory(array $nodes): array
@@ -421,6 +612,10 @@ class InternalLinkGraphBuilder
         $buckets = [];
 
         foreach ($nodes as $node) {
+            if (($node['entity_type'] ?? '') === 'category') {
+                continue;
+            }
+
             $categories = $node['categories'] ?? [];
 
             if ($categories === []) {
@@ -458,6 +653,113 @@ class InternalLinkGraphBuilder
     }
 
     /**
+     * @param array<string,array<string,mixed>> $nodes
+     * @return list<array<string,mixed>>
+     */
+    private function buildLinkOpportunities(array $nodes, array $knowledge): array
+    {
+        $opportunities = [];
+
+        $byCategoryId = [];
+        foreach ($nodes as $key => $node) {
+            foreach ($node['category_ids'] ?? [] as $cid) {
+                $byCategoryId[$cid][] = $key;
+            }
+        }
+
+        foreach ($nodes as $key => $node) {
+            if (empty($node['is_orphan']) && (int)$node['incoming_count'] > 0) {
+                continue;
+            }
+            if (($node['entity_type'] ?? '') === 'category') {
+                continue;
+            }
+            if (($node['status'] ?? '') !== 'publish' && ($node['status'] ?? '') !== '') {
+                continue;
+            }
+
+            $candidates = [];
+            foreach ($node['category_ids'] ?? [] as $cid) {
+                foreach ($byCategoryId[$cid] ?? [] as $sourceKey) {
+                    if ($sourceKey === $key) {
+                        continue;
+                    }
+                    $source = $nodes[$sourceKey] ?? null;
+                    if ($source === null) {
+                        continue;
+                    }
+                    if (($source['entity_type'] ?? '') === 'category') {
+                        continue;
+                    }
+                    // Prefer sources that already link out and are not orphans
+                    $score = (int)$source['outgoing_count'] + (int)$source['incoming_count'];
+                    if (!empty($source['is_cornerstone'])) {
+                        $score += 10;
+                    }
+                    $candidates[] = [
+                        'score' => $score,
+                        'entity_type' => $source['entity_type'],
+                        'entity_id' => $source['id'],
+                        'title' => $source['title'],
+                        'url' => $source['url'],
+                        'suggested_anchor' => $node['focus_keyword'] !== ''
+                            ? $node['focus_keyword']
+                            : $node['title'],
+                    ];
+                }
+            }
+
+            if ($candidates === []) {
+                continue;
+            }
+
+            usort($candidates, static fn(array $a, array $b): int => $b['score'] <=> $a['score']);
+            $sources = array_slice($candidates, 0, self::MAX_SOURCES_PER_OPP);
+
+            $opportunities[] = [
+                'id' => $node['id'],
+                'entity_id' => $node['id'],
+                'entity_type' => $node['entity_type'],
+                'title' => $node['title'],
+                'url' => $node['url'],
+                'reason' => !empty($node['is_orphan']) ? 'orphan' : 'low_inbound',
+                'suggested_anchor' => $node['focus_keyword'] !== ''
+                    ? $node['focus_keyword']
+                    : $node['title'],
+                'suggested_sources' => $sources,
+            ];
+
+            if (count($opportunities) >= self::MAX_LINK_OPPORTUNITIES) {
+                break;
+            }
+        }
+
+        return $opportunities;
+    }
+
+    private function normalizeUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (function_exists('home_url') && str_starts_with($url, '/')) {
+            $url = home_url($url);
+        }
+
+        $parts = function_exists('wp_parse_url') ? wp_parse_url($url) : parse_url($url);
+        if (!is_array($parts)) {
+            return rtrim(strtolower($url), '/');
+        }
+
+        $host = strtolower((string)($parts['host'] ?? ''));
+        $path = (string)($parts['path'] ?? '/');
+
+        return rtrim($host . $path, '/');
+    }
+
+    /**
      * @param array<int,int> $menuObjectIds
      */
     private function buildFromWordPressFallback(array $menuObjectIds): array
@@ -466,6 +768,7 @@ class InternalLinkGraphBuilder
             'posts' => [],
             'pages' => [],
             'products' => [],
+            'categories' => [],
         ];
 
         $posts = get_posts([
@@ -488,7 +791,9 @@ class InternalLinkGraphBuilder
                 ? (new ContentStructureExtractor())->extract($html)
                 : ['internal_links' => $this->parseHrefLinks($html)];
 
-            $plain = ai_clean_text($html);
+            $plain = function_exists('ai_clean_text')
+                ? ai_clean_text($html)
+                : trim(strip_tags($html));
             $metrics = class_exists('TextMetrics')
                 ? TextMetrics::analyze($plain)
                 : ['word_count' => str_word_count($plain)];
@@ -514,6 +819,7 @@ class InternalLinkGraphBuilder
                     'categories' => is_array($categories) ? $categories : [],
                 ],
                 'structure' => $structure,
+                'seo' => [],
             ];
         }
 

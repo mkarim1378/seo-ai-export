@@ -58,6 +58,8 @@ class ProductMapper
             'slug' => $product->get_slug(),
             'sku' => $product->get_sku(),
             'url' => get_permalink($product->get_id()),
+            'total_sales' => (int) $product->get_total_sales(),
+            'stock_status' => (string) $product->get_stock_status(),
             'created_at' => $product->get_date_created()
                 ? $product->get_date_created()->date('Y-m-d H:i:s')
                 : '',

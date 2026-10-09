@@ -20,13 +20,15 @@ class AiContextExporter
         array $knowledge,
         array $brain,
         array $audit,
-        array $files = []
+        array $files = [],
+        array $keywordMap = []
     ): array {
         $context = (new AiContextBuilder())->build(
             $knowledge,
             $brain,
             $audit,
-            $files
+            $files,
+            $keywordMap
         );
 
         $this->json->write('ai_context.json', $context);

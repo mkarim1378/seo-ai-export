@@ -31,21 +31,22 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 | File | Contains | Open it when… |
 |------|----------|---------------|
-| **`ai_context.json`** | AI starter pack: site_profile summary, counts, capped top findings, url_index without bodies, file pointers | **Read this first** for overview and priorities |
-| **`manifest.json`** | Run summary, counts, audit/link/site_profile summaries, file index | Tiny overview if ai_context is missing |
-| **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps, special pages, SEO plugins; WP/theme as technical context only | Site-level crawlability |
+| **`ai_context.json`** | AI starter pack: site_profile summary, counts, impact-ranked findings, `next_actions`, keyword summary, rich url_index | **Read this first** for overview and priorities |
+| **`manifest.json`** | Run summary, counts, audit/link/keyword/site_profile summaries, file index | Tiny overview if ai_context is missing |
+| **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps (+reachable), special pages, SEO plugins, `seo_plugin_globals` | Site-level crawlability |
+| **`keyword_map.json`** | Keyword inventory, url_targets + coverage, cannibalization, gaps, suggestions, optional GSC merge | On-site keyword research / primary suggestions |
 | **`seo_audit.json`** | Full findings with severity + `ai_action` (heuristics, not Google scores) | Complete issue list beyond the ai_context cap |
-| **`knowledge.json`** | Full entities with content/structure/seo | One URL rewrite, FAQ, reviews |
-| **`site_brain.json`** | Stats, clusters, graph, navigation, link_analysis, site_profile, light entity_index | Strategy, IA, navigation |
-| **`internal_link_graph.json`** | Orphans / hubs / unresolved links / duplicate anchors | Internal linking |
+| **`knowledge.json`** | Full entities with content/structure/seo (+ `seo.keyword_coverage`) | One URL rewrite, FAQ, reviews |
+| **`site_brain.json`** | Stats, enriched clusters (pillars/keywords), graph, navigation, link_analysis (+ opportunities), entity_index | Strategy, IA, navigation |
+| **`internal_link_graph.json`** | Orphans / hubs / unresolved / duplicate anchors / link_opportunities / category nodes | Internal linking |
 
 ### Entity shape (mainly inside `knowledge.json`)
 
 - Persian-aware text metrics: `word_count` / `sentence_count` / `char_count`, `html_length`
 - `structure`: headings, links, faq_candidates, `images_count` / `images_missing_alt`
-- `seo`: title/description/canonical/focus_keyword, rich robots, `schema_types`, `is_cornerstone`, `resolved_title`/`resolved_description`, lengths, OG/Twitter, `plugin`/`sources`
+- `seo`: title/description/canonical/focus_keyword, rich robots, `schema_types`, `is_cornerstone`, `resolved_*`, lengths, OG/Twitter, `plugin`/`sources`, **`keyword_coverage`**
 - Post author: `published_posts` (light EEAT signal)
-- Product: `identifiers`, `variations`, `reviews`, `breadcrumb`
+- Product: `identifiers`, `variations`, `reviews`, `breadcrumb`, `total_sales`
 
 ---
 
@@ -55,16 +56,17 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 | Question / goal | Open first | Then only if needed |
 |-----------------|------------|---------------------|
-| Priorities, sprint, “where do I start?” | `ai_context.json` | Else `seo_audit.json` + `manifest.json`; detail → `knowledge.json` |
+| Priorities, sprint, “where do I start?” | `ai_context.json` (`next_actions` + top_findings) | Else `seo_audit.json` + `manifest.json`; detail → `knowledge.json` |
 | Exec report / KPI / overall status | `ai_context.json` or `manifest.json` | Full `seo_audit` for more examples |
-| Crawlability / robots / sitemap / site visibility | `ai_context.site_profile_summary` or `site_profile.json` | — |
-| One product/post/page (content, title, meta, H1, FAQ) | `knowledge.json` (that entity) | Related finding → `seo_audit.json` |
-| Topic clusters / IA / site-level content strategy | `site_brain.json` | Sample entities in `knowledge.json` |
+| Crawlability / robots / sitemap / visibility / global noindex | `ai_context.site_profile_summary` or `site_profile.json` | — |
+| Keyword suggestions / inventory / gaps / soft cannibalization | `keyword_map.json` or `ai_context.keyword_intelligence` | Confirm coverage on entity in `knowledge.json` |
+| One product/post/page (content, title, meta, H1, FAQ, coverage) | `knowledge.json` (that entity) | Related finding → `seo_audit.json` |
+| Topic clusters / IA / pillars / content strategy | `site_brain.json` (enriched clusters) | Sample entities in `knowledge.json` |
 | Menus, navigation, user paths | `site_brain.json` (navigation) | Product breadcrumb in `knowledge.json` |
-| Orphans / weak hubs / dead links / duplicate anchors | `internal_link_graph.json` | Else `site_brain.link_analysis` or link findings in `seo_audit.json`; page detail → `knowledge.json` |
-| Cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` | Confirm on entity in `knowledge.json` |
-| Brand / GTIN / reviews / product images | `seo_audit.json` (commerce findings) or the entity in `knowledge.json` | — |
-| Only `knowledge.json` attached | That file | State the limit; ask for the other files for precise orphan/sprint work |
+| Orphans / weak hubs / dead links / suggested internal links | `internal_link_graph.json` | Else `site_brain.link_analysis` or link findings in `seo_audit.json` |
+| Cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` (+ `keyword_map` for keywords) | Confirm on entity in `knowledge.json` |
+| Brand / GTIN / reviews / images / product schema essentials | `seo_audit.json` (commerce findings) or the entity in `knowledge.json` | — |
+| Only `knowledge.json` attached | That file | State the limit; ask for the other files for precise orphan/sprint/keyword work |
 
 If the right file is not attached, do not invent a vague answer. Say: “I need `[filename]` for this question.”
 
