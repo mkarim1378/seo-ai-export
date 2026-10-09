@@ -28,6 +28,7 @@
 |--------|--------|
 | `knowledge.json` | مرجع کامل موجودیت‌ها برای چت با AI |
 | `seo_audit.json` | لیست مشکلات و فرصت‌های سئو با اولویت و `ai_action` |
+| `ai_context.json` | بسته شروع AI (خلاصه + top findings + url_index) |
 | `site_profile.json` | visibility، permalink، robots.txt، sitemap، صفحات ویژه، پلاگین سئو |
 | `site_brain.json` | بسته هوش سایت (آمار، خوشه‌ها، روابط، ناوبری، `entity_index` سبک) |
 | `internal_link_graph.json` | orphan، weak hub، لینک مرده، انکر تکراری |
@@ -106,7 +107,9 @@ php index.php
 ```text
 output/
   json/
+    ai_context.json      ← شروع کار با AI
     knowledge.json
+    site_profile.json
     site_brain.json
     internal_link_graph.json
     seo_audit.json
@@ -124,11 +127,13 @@ output/
 
 | فایل | چه می‌گوید | کی به AI بده |
 |------|------------|--------------|
-| **`seo_audit.json`** | یافته‌های قابل‌اجرا با شدت و `ai_action` | اولویت ۱ برای «چیزی که باید درست شود» |
-| **`manifest.json`** | خلاصه اجرا و ایندکس فایل‌ها | اولویت ۱ برای overview سریع |
-| **`knowledge.json`** | کل موجودیت‌ها با محتوا، structure، seo، روابط | اولویت ۲ — مرجع اصلی Gem کلاسیک |
-| **`site_brain.json`** | آمار + خوشه + گراف دانش + ناوبری + link_analysis | اولویت ۲ برای استراتژی و معماری |
-| **`internal_link_graph.json`** | orphan / hub / dead / duplicate anchor | وقتی روی لینک‌سازی داخلی کار می‌کنی |
+| **`ai_context.json`** | بسته جمع‌وجور شروع: خلاصه سایت، counts، top findings، url_index | **اولویت ۱ — شروع کار با Gem** |
+| **`seo_audit.json`** | همه یافته‌های قابل‌اجرا با شدت و `ai_action` | وقتی از سقف ai_context رد شدی |
+| **`manifest.json`** | خلاصه اجرا و ایندکس فایل‌ها | overview خیلی سریع |
+| **`site_profile.json`** | visibility، robots، sitemap، صفحات ویژه | technical SEO سطح‌سایت |
+| **`knowledge.json`** | کل موجودیت‌ها با محتوا، structure، seo | جزئیات یک URL / بازنویسی |
+| **`site_brain.json`** | آمار + خوشه + گراف + ناوبری + entity_index | استراتژی و معماری |
+| **`internal_link_graph.json`** | orphan / hub / unresolved / duplicate anchor | لینک‌سازی داخلی |
 | CSV / Markdown | خواندن دستی یا ایمپورت اکسل | گزارش انسانی، ادیت محتوا |
 
 ### فیلدهای مهم داخل موجودیت‌ها
@@ -149,17 +154,17 @@ output/
 3. متن دستورالعمل را از یکی از این فایل‌ها کپی کن:
    - فارسی: [`prompt-fa.md`](prompt-fa.md)
    - English: [`prompt-en.md`](prompt-en.md)
-4. به‌عنوان Knowledge / Files به Gem بده (همه اجباری نیست؛ پرامپت به مدل می‌گوید کدام فایل ممکن است باشد و برای هر سؤال اول کجا را باز کند):
-   - حداقل: `output/json/knowledge.json`
-   - بهتر: `knowledge.json` + `seo_audit.json` + `manifest.json`
-   - کامل‌تر: همان‌ها + `site_brain.json` و در صورت نیاز `internal_link_graph.json`
-5. بعد سؤال بپرس. لازم نیست مدل همه فایل‌ها را هر بار اسکن کند — داخل `prompt-fa.md` / `prompt-en.md` جدول **ROUTING** هست (مثلاً Sprint → `seo_audit`، یک محصول → `knowledge`، orphan → گراف لینک).
+4. به‌عنوان Knowledge / Files به Gem بده (همه اجباری نیست؛ پرامپت جدول ROUTING دارد):
+   - **حداقل پیشنهادی:** `output/json/ai_context.json`
+   - بهتر: `ai_context.json` + `prompt` (دستورالعمل Gem)
+   - کامل‌تر: همان + `seo_audit.json` / `knowledge.json` فقط وقتی روی URL خاصی عمیق می‌شوی
+5. بعد سؤال بپرس. مدل نباید هر بار همه فایل‌ها را اسکن کند.
 
 ### اگر حجم فایل برای آپلود زیاد است
 
-1. اول فقط `seo_audit.json` + `manifest.json` را بده و از AI بخواه اولویت‌ها را بسازد.
-2. بعد فقط موجودیت‌های مرتبط (مثلاً یک دسته محصول یا چند پست) را از `knowledge` جدا کن و بده.
-3. یا از Markdown همان موجودیت‌ها در `output/markdown/` استفاده کن.
+1. فقط `ai_context.json` را بده (برای اکثر سؤالات کافی است).
+2. برای جزئیات یک صفحه، همان entity را از `knowledge` یا Markdown جدا کن.
+3. در صورت نیاز `seo_audit.json` کامل را اضافه کن.
 
 ### نمونه سؤال‌هایی که می‌توانی بپرسی
 
@@ -177,7 +182,7 @@ output/
 
 **هدف:** بعد از هر export، یک مشاور همیشگی داشته باشی که سایت را «می‌شناسد».
 
-**چطور:** `prompt-fa.md` + `knowledge.json` (+ ترجیحاً `seo_audit.json`) را به Gem بده و سؤال بپرس.
+**چطور:** `prompt-fa.md` + `ai_context.json` را به Gem بده و سؤال بپرس؛ برای جزئیات URL از `knowledge.json` استفاده کن.
 
 ---
 
@@ -324,4 +329,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 
 اگر فقط یک مسیر را می‌خواهی به خاطر بسپاری:
 
-**آپلود زیپ ریلیز → باز کردن `/ai-exporter/` → دادن `prompt-fa.md` + `knowledge.json` (و بهتر: `seo_audit.json`) به Gemini Gem → سؤال بپرس.**
+**آپلود زیپ ریلیز → باز کردن `/ai-exporter/` → دادن `prompt-fa.md` + `ai_context.json` به Gemini Gem → سؤال بپرس.**

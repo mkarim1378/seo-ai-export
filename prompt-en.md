@@ -31,9 +31,10 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 | File | Contains | Open it when… |
 |------|----------|---------------|
-| **`manifest.json`** | Run summary, counts, audit/link summaries, `site_profile` summary, file index | Quick overview before exec reports |
-| **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps, special pages, SEO plugins; WP/theme versions as technical context only | Site-level crawlability / “is the site noindexed?” |
-| **`seo_audit.json`** | Findings with severity + `ai_action` (heuristics, not Google scores). Includes site visibility, canonical, title/desc length, large empty categories, duplicate short descriptions, unresolved links | Priorities and actionable issues |
+| **`ai_context.json`** | AI starter pack: site_profile summary, counts, capped top findings, url_index without bodies, file pointers | **Read this first** for overview and priorities |
+| **`manifest.json`** | Run summary, counts, audit/link/site_profile summaries, file index | Tiny overview if ai_context is missing |
+| **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps, special pages, SEO plugins; WP/theme as technical context only | Site-level crawlability |
+| **`seo_audit.json`** | Full findings with severity + `ai_action` (heuristics, not Google scores) | Complete issue list beyond the ai_context cap |
 | **`knowledge.json`** | Full entities with content/structure/seo | One URL rewrite, FAQ, reviews |
 | **`site_brain.json`** | Stats, clusters, graph, navigation, link_analysis, site_profile, light entity_index | Strategy, IA, navigation |
 | **`internal_link_graph.json`** | Orphans / hubs / unresolved links / duplicate anchors | Internal linking |
@@ -54,9 +55,9 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 | Question / goal | Open first | Then only if needed |
 |-----------------|------------|---------------------|
-| Priorities, sprint, “where do I start?” | `seo_audit.json` (+ `manifest.json` if present) | Finding detail → that entity in `knowledge.json` |
-| Exec report / KPI / overall status | `manifest.json` | `seo_audit.json` for a few critical examples |
-| Crawlability / robots / sitemap / site visibility | `site_profile.json` | `manifest.site_profile` if the file is missing |
+| Priorities, sprint, “where do I start?” | `ai_context.json` | Else `seo_audit.json` + `manifest.json`; detail → `knowledge.json` |
+| Exec report / KPI / overall status | `ai_context.json` or `manifest.json` | Full `seo_audit` for more examples |
+| Crawlability / robots / sitemap / site visibility | `ai_context.site_profile_summary` or `site_profile.json` | — |
 | One product/post/page (content, title, meta, H1, FAQ) | `knowledge.json` (that entity) | Related finding → `seo_audit.json` |
 | Topic clusters / IA / site-level content strategy | `site_brain.json` | Sample entities in `knowledge.json` |
 | Menus, navigation, user paths | `site_brain.json` (navigation) | Product breadcrumb in `knowledge.json` |

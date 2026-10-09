@@ -64,6 +64,8 @@ require_once AI_EXPORTER_ROOT.'/builders/SiteBrainBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SiteBrainExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/AiContextBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/AiContextExporter.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -124,6 +126,7 @@ try {
     $auditSummary = $audit['summary'] ?? [];
 
     $files = [
+        'ai_context' => 'json/ai_context.json',
         'knowledge' => 'json/knowledge.json',
         'site_profile' => 'json/site_profile.json',
         'site_brain' => 'json/site_brain.json',
@@ -131,6 +134,16 @@ try {
         'seo_audit' => 'json/seo_audit.json',
         'manifest' => 'json/manifest.json',
     ];
+
+    $aiContext = [];
+    if (!empty($config['export']['ai_context'])) {
+        $aiContext = (new AiContextExporter($config))->export(
+            $knowledge,
+            $brain,
+            $audit,
+            $files
+        );
+    }
 
     $json->write('manifest.json', [
         'generated_at' => date('Y-m-d H:i:s'),
@@ -149,7 +162,12 @@ try {
         ],
         'link_analysis' => $linkSummary,
         'seo_audit' => $auditSummary,
+        'ai_context' => [
+            'top_findings' => count($aiContext['seo_audit']['top_findings'] ?? []),
+            'url_index' => count($aiContext['url_index'] ?? []),
+        ],
         'files' => $files,
+        'recommended_ai_starter' => 'json/ai_context.json',
     ]);
 
     $report['counts'] = [
@@ -163,9 +181,14 @@ try {
     $report['link_analysis'] = $linkSummary;
     $report['files'] = [
         [
+            'name' => 'ai_context.json',
+            'href' => 'output/json/ai_context.json',
+            'description' => 'Start here for Gemini/ChatGPT — compact AI pack',
+        ],
+        [
             'name' => 'seo_audit.json',
             'href' => 'output/json/seo_audit.json',
-            'description' => 'Actionable SEO findings for AI agents',
+            'description' => 'Full actionable SEO findings',
         ],
         [
             'name' => 'site_profile.json',

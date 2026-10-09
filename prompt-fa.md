@@ -33,9 +33,10 @@
 
 | فایل | محتویات | رجوع کن وقتی… |
 |------|---------|----------------|
-| **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link، خلاصه `site_profile`، ایندکس فایل‌ها | overview سریع، قبل از گزارش مدیریتی |
-| **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps، صفحات ویژه (home/shop/...)، پلاگین سئو؛ نسخه WP/قالب فقط به‌عنوان technical context | technical SEO سطح‌سایت، crawlability، «سایت noindex است؟» |
-| **`seo_audit.json`** | findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست). شامل visibility سایت، canonical، طول title/desc، دسته‌های بزرگ خالی، short_desc تکراری، unresolved links | اولویت کار، Sprint، مشکلات قابل‌اجرا |
+| **`ai_context.json`** | بسته شروع AI: خلاصه site_profile، counts، top findings (سقف‌دار)، url_index بدون body، اشاره‌گر فایل‌ها | **اول این را بخوان** برای overview و اولویت‌ها |
+| **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link/site_profile، ایندکس فایل‌ها | overview خیلی سریع اگر ai_context نبود |
+| **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps، صفحات ویژه، پلاگین سئو؛ نسخه WP/قالب فقط technical context | crawlability سطح‌سایت |
+| **`seo_audit.json`** | همه findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست) | لیست کامل مشکلات وقتی از سقف ai_context رد شدی |
 | **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo | جزئیات یک URL، بازنویسی، FAQ، نظرات |
 | **`site_brain.json`** | آمار، clusters، graph، navigation، link_analysis، site_profile، entity_index سبک | استراتژی، IA، ناوبری |
 | **`internal_link_graph.json`** | orphan / hub / unresolved links / duplicate anchors | لینک‌سازی داخلی |
@@ -56,9 +57,9 @@
 
 | نوع سؤال / هدف | اول باز کن | بعداً فقط اگر لازم شد |
 |----------------|------------|------------------------|
-| اولویت کار، Sprint، «از کجا شروع کنم؟» | `seo_audit.json` (+ در صورت وجود `manifest.json`) | جزئیات یک finding → همان entity در `knowledge.json` |
-| گزارش مدیریتی / KPI / وضعیت کلی | `manifest.json` | `seo_audit.json` برای چند مثال critical |
-| crawlability / robots / sitemap / visibility سایت | `site_profile.json` | `manifest.site_profile` اگر فایل جدا نبود |
+| اولویت کار، Sprint، «از کجا شروع کنم؟» | `ai_context.json` | اگر نبود: `seo_audit.json` + `manifest.json`؛ جزئیات → `knowledge.json` |
+| گزارش مدیریتی / KPI / وضعیت کلی | `ai_context.json` یا `manifest.json` | `seo_audit` برای مثال‌های بیشتر |
+| crawlability / robots / sitemap / visibility سایت | `ai_context.site_profile_summary` یا `site_profile.json` | — |
 | یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ) | `knowledge.json` (همان entity) | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
 | Topic Cluster / IA / استراتژی محتوایی سطح سایت | `site_brain.json` | نمونه موجودیت‌ها در `knowledge.json` |
 | منو، ناوبری، مسیر کاربر در سایت | `site_brain.json` (navigation) | breadcrumb محصول در `knowledge.json` |
