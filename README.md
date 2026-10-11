@@ -148,14 +148,15 @@ input/                   ← اختیاری
 
 | فایل | چه می‌گوید | کی به AI بده |
 |------|------------|--------------|
-| **`output/ai-pack/` (۸ فایل)** | بسته آپلود: starter + knowledge + brain + graph + audit + keywords + technical | **مسیر پیشنهادی — همه را یکجا به Gem بده** |
+| **`output/ai-pack/` (۸ فایل)** | بسته آپلود آماده Gem/ChatGPT | **مسیر پیشنهادی — هر ۸ فایل را یکجا بده** |
+| **`ai-pack/manifest.json`** | ایندکس پک، counts، `how_to_use`، نقشهٔ ۸ فایل | overview خیلی سریع / نقشه فایل‌ها |
 | **`ai-pack/ai_context.json`** | بسته شروع: خلاصه سایت، `next_actions`، findings با impact، keyword summary، url_index غنی | اول این را بخوان داخل پک |
-| **`ai-pack/technical.json`** | ادغام **کامل** `site_profile` + `redirect_map` + `hreflang` + `sitemap_coverage` + `media_seo` + `content_duplicates` + `audit_diff` | technical SEO / پیشرفت / تصویر / duplicate |
 | **`ai-pack/knowledge.json`** | کل موجودیت‌ها با محتوا، structure، seo، keyword_coverage | جزئیات یک URL / بازنویسی |
 | **`ai-pack/site_brain.json`** | آمار + خوشه غنی (pillar) + گراف + ناوبری + entity_index | استراتژی و معماری |
 | **`ai-pack/internal_link_graph.json`** | orphan / hub / unresolved / link_opportunities | لینک‌سازی داخلی |
 | **`ai-pack/seo_audit.json`** | همه یافته‌های قابل‌اجرا با شدت و `ai_action` | وقتی از سقف ai_context رد شدی |
 | **`ai-pack/keyword_map.json`** | inventory، پیشنهاد کیورد، gaps، cannibalization، اختیاری GSC | کیورد ریسرچ / پیشنهاد primary |
+| **`ai-pack/technical.json`** | ادغام **کامل** `site_profile` + `redirect_map` + `hreflang` + `sitemap_coverage` + `media_seo` + `content_duplicates` + `audit_diff` | technical SEO / پیشرفت / تصویر / duplicate |
 | **`output/json/*`** | همان داده‌ها به‌صورت فایل‌های جدا (آرشیو/ابزار) | معمولاً لازم نیست اگر ai-pack را داده‌ای |
 | CSV / Markdown | خواندن دستی یا ایمپورت اکسل | گزارش انسانی، ادیت محتوا |
 
