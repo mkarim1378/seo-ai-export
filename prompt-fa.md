@@ -31,18 +31,21 @@
 
 # FILE CATALOG — هر فایل چیست؟
 
+کاربر معمولاً پوشهٔ **`ai-pack/`** (حداکثر ۸ فایل) را آپلود می‌کند. همان نام فایل‌ها ممکن است از `output/json/` هم بیایند. اگر `technical.json` پیوست شده، داده‌های technical جدا (`site_profile` و …) داخل کلیدهای همان فایل‌اند — کامل، نه خلاصه.
+
 | فایل | محتویات | رجوع کن وقتی… |
 |------|---------|----------------|
 | **`ai_context.json`** | بسته شروع AI: خلاصه site_profile، counts، top findings با `impact_score`، `next_actions`، keyword summary، url_index غنی | **اول این را بخوان** برای overview و اولویت‌ها |
-| **`manifest.json`** | خلاصه اجرا، تعدادها، خلاصه audit/link/keyword/site_profile، ایندکس فایل‌ها | overview خیلی سریع اگر ai_context نبود |
-| **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps (+reachable)، صفحات ویژه، پلاگین سئو، `seo_plugin_globals` | crawlability سطح‌سایت |
+| **`manifest.json`** | خلاصه اجرا / ایندکس پک، تعدادها، `how_to_use`، نقشه فایل‌ها | overview خیلی سریع اگر ai_context نبود |
+| **`technical.json`** | ادغام کامل: `site_profile` + `redirect_map` + `hreflang` + `sitemap_coverage` + `media_seo` + `content_duplicates` + `audit_diff` | هر سؤال technical / پیشرفت / تصویر / duplicate / hreflang |
+| **`site_profile.json`** | visibility، permalink، robots.txt، sitemaps (+reachable)، صفحات ویژه، پلاگین سئو، `seo_plugin_globals` | crawlability — یا `technical.site_profile` |
 | **`keyword_map.json`** | inventory کیوردها، url_targets + coverage، cannibalization، gaps، suggestions، اختیاری GSC | کیورد ریسرچ on-site، پیشنهاد primary/secondary |
-| **`audit_diff.json`** | added/resolved/severity_changed نسبت به seo_audit قبلی | پیشرفت قبل/بعد، گزارش ماهانه |
-| **`redirect_map.json`** | قوانین redirect + chains/loops | مهاجرت URL، خطای redirect |
-| **`hreflang.json`** | زبان‌ها و translation pairs (Polylang/WPML) | سئوی چندزبانه |
-| **`sitemap_coverage.json`** | URLهای sitemap در برابر export | شکاف ایندکس/sitemap |
-| **`media_seo.json`** | alt خالی، oversized، ابعاد بزرگ | بهینه‌سازی تصویر |
-| **`content_duplicates.json`** | fingerprint محتوای نزدیک‌به‌تکراری + عنوان تکراری | duplicate content |
+| **`audit_diff.json`** | added/resolved/severity_changed نسبت به seo_audit قبلی | پیشرفت قبل/بعد — یا `technical.audit_diff` |
+| **`redirect_map.json`** | قوانین redirect + chains/loops | مهاجرت URL — یا `technical.redirect_map` |
+| **`hreflang.json`** | زبان‌ها و translation pairs (Polylang/WPML) | سئوی چندزبانه — یا `technical.hreflang` |
+| **`sitemap_coverage.json`** | URLهای sitemap در برابر export | شکاف ایندکس — یا `technical.sitemap_coverage` |
+| **`media_seo.json`** | alt خالی، oversized، ابعاد بزرگ | تصویر — یا `technical.media_seo` |
+| **`content_duplicates.json`** | fingerprint محتوای نزدیک‌به‌تکراری + عنوان تکراری | duplicate — یا `technical.content_duplicates` |
 | **`seo_audit.json`** | همه findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست) | لیست کامل مشکلات وقتی از سقف ai_context رد شدی |
 | **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo (+ `seo.keyword_coverage`) | جزئیات یک URL، بازنویسی، FAQ، نظرات |
 | **`site_brain.json`** | آمار، clusters غنی (pillar/keywords)، graph، navigation، link_analysis (+ opportunities)، entity_index | استراتژی، IA، ناوبری |
@@ -67,14 +70,14 @@
 |----------------|------------|------------------------|
 | اولویت کار، Sprint، «از کجا شروع کنم؟» | `ai_context.json` (`next_actions` + top_findings) | اگر نبود: `seo_audit.json` + `manifest.json`؛ جزئیات → `knowledge.json` |
 | گزارش مدیریتی / KPI / وضعیت کلی | `ai_context.json` یا `manifest.json` | `seo_audit` برای مثال‌های بیشتر |
-| crawlability / robots / sitemap / visibility / noindex سراسری | `ai_context.site_profile_summary` یا `site_profile.json` | — |
+| crawlability / robots / sitemap / visibility / noindex سراسری | `ai_context.site_profile_summary` یا `technical.site_profile` / `site_profile.json` | — |
 | پیشنهاد کیورد / inventory / gap / cannibalization نرم | `keyword_map.json` یا `ai_context.keyword_intelligence` | تأیید coverage روی entity در `knowledge.json` |
-| پیشرفت قبل/بعد / چه چیزهایی حل شد؟ | `audit_diff.json` یا `ai_context.audit_diff_summary` | — |
-| redirect chain / loop / قوانین ریدایرکت | `redirect_map.json` | findingهای redirect در `seo_audit` |
-| hreflang / ترجمه / چندزبانه | `hreflang.json` | — |
-| پوشش sitemap / URL جاافتاده از sitemap | `sitemap_coverage.json` | — |
-| تصویر حجیم / alt کتابخانه رسانه | `media_seo.json` | — |
-| محتوای تکراری / near-duplicate | `content_duplicates.json` | findingهای `near_duplicate_content` در audit |
+| پیشرفت قبل/بعد / چه چیزهایی حل شد؟ | `technical.audit_diff` یا `audit_diff.json` یا `ai_context.audit_diff_summary` | — |
+| redirect chain / loop / قوانین ریدایرکت | `technical.redirect_map` یا `redirect_map.json` | findingهای redirect در `seo_audit` |
+| hreflang / ترجمه / چندزبانه | `technical.hreflang` یا `hreflang.json` | — |
+| پوشش sitemap / URL جاافتاده از sitemap | `technical.sitemap_coverage` یا `sitemap_coverage.json` | — |
+| تصویر حجیم / alt کتابخانه رسانه | `technical.media_seo` یا `media_seo.json` | — |
+| محتوای تکراری / near-duplicate | `technical.content_duplicates` یا `content_duplicates.json` | findingهای `near_duplicate_content` در audit |
 | یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ، coverage) | `knowledge.json` (همان entity) | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
 | Topic Cluster / IA / pillar / استراتژی محتوایی | `site_brain.json` (clusters غنی) | نمونه موجودیت‌ها در `knowledge.json` |
 | منو، ناوبری، مسیر کاربر در سایت | `site_brain.json` (navigation) | breadcrumb محصول در `knowledge.json` |

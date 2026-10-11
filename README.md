@@ -36,6 +36,7 @@
 | `content_duplicates.json` | گروه‌های محتوای نزدیک‌به‌تکراری و عنوان تکراری |
 | `seo_audit.json` | لیست مشکلات و فرصت‌های سئو با اولویت و `ai_action` |
 | `ai_context.json` | بسته شروع AI (خلاصه + impact-ranked findings + next_actions + keyword summary) |
+| `output/ai-pack/` | **۸ فایل** آماده آپلود به Gem/ChatGPT (کل دیتای مفید، زیر سقف ۱۰ فایل) |
 | `site_profile.json` | visibility، permalink، robots/sitemap، `seo_plugin_globals`، صفحات ویژه |
 | `site_brain.json` | بسته هوش سایت (خوشه‌های غنی با pillar، روابط، ناوبری، `entity_index`) |
 | `internal_link_graph.json` | orphan، weak hub، لینک مرده، link_opportunities، category nodes |
@@ -113,9 +114,18 @@ php index.php
 
 ```text
 output/
-  json/
-    ai_context.json      ← شروع کار با AI
-    keyword_map.json     ← کیورد ریسرچ on-site
+  ai-pack/               ← آپلود به AI (فقط همین ۸ فایل)
+    manifest.json
+    ai_context.json
+    knowledge.json
+    site_brain.json
+    internal_link_graph.json
+    seo_audit.json
+    keyword_map.json
+    technical.json       ← ادغام کامل site_profile + redirects + …
+  json/                  ← خروجی خام کامل (برای ابزار/آرشیو)
+    ai_context.json
+    keyword_map.json
     knowledge.json
     site_profile.json
     site_brain.json
@@ -138,20 +148,15 @@ input/                   ← اختیاری
 
 | فایل | چه می‌گوید | کی به AI بده |
 |------|------------|--------------|
-| **`ai_context.json`** | بسته شروع: خلاصه سایت، `next_actions`، findings با impact، keyword summary، url_index غنی | **اولویت ۱ — شروع کار با Gem** |
-| **`keyword_map.json`** | inventory، پیشنهاد کیورد، gaps، cannibalization، اختیاری GSC | کیورد ریسرچ / پیشنهاد primary |
-| **`audit_diff.json`** | diff با `seo_audit` قبلی | مقایسه قبل/بعد بعد از اصلاحات |
-| **`redirect_map.json`** | قوانین redirect + تحلیل chain/loop | Technical SEO / مهاجرت URL |
-| **`hreflang.json`** | نقشه زبان و ترجمه‌ها | سایت چندزبانه |
-| **`sitemap_coverage.json`** | شکاف sitemap ↔ export | technical SEO / ایندکس |
-| **`media_seo.json`** | alt / حجم / ابعاد رسانه | بهینه‌سازی تصویر |
-| **`content_duplicates.json`** | near-duplicate محتوا و عنوان | کیفیت محتوا |
-| **`seo_audit.json`** | همه یافته‌های قابل‌اجرا با شدت و `ai_action` | وقتی از سقف ai_context رد شدی |
-| **`manifest.json`** | خلاصه اجرا و ایندکس فایل‌ها | overview خیلی سریع |
-| **`site_profile.json`** | visibility، robots، sitemap reachable، seo_plugin_globals | technical SEO سطح‌سایت |
-| **`knowledge.json`** | کل موجودیت‌ها با محتوا، structure، seo، keyword_coverage | جزئیات یک URL / بازنویسی |
-| **`site_brain.json`** | آمار + خوشه غنی (pillar) + گراف + ناوبری + entity_index | استراتژی و معماری |
-| **`internal_link_graph.json`** | orphan / hub / unresolved / link_opportunities | لینک‌سازی داخلی |
+| **`output/ai-pack/` (۸ فایل)** | بسته آپلود: starter + knowledge + brain + graph + audit + keywords + technical | **مسیر پیشنهادی — همه را یکجا به Gem بده** |
+| **`ai-pack/ai_context.json`** | بسته شروع: خلاصه سایت، `next_actions`، findings با impact، keyword summary، url_index غنی | اول این را بخوان داخل پک |
+| **`ai-pack/technical.json`** | ادغام **کامل** `site_profile` + `redirect_map` + `hreflang` + `sitemap_coverage` + `media_seo` + `content_duplicates` + `audit_diff` | technical SEO / پیشرفت / تصویر / duplicate |
+| **`ai-pack/knowledge.json`** | کل موجودیت‌ها با محتوا، structure، seo، keyword_coverage | جزئیات یک URL / بازنویسی |
+| **`ai-pack/site_brain.json`** | آمار + خوشه غنی (pillar) + گراف + ناوبری + entity_index | استراتژی و معماری |
+| **`ai-pack/internal_link_graph.json`** | orphan / hub / unresolved / link_opportunities | لینک‌سازی داخلی |
+| **`ai-pack/seo_audit.json`** | همه یافته‌های قابل‌اجرا با شدت و `ai_action` | وقتی از سقف ai_context رد شدی |
+| **`ai-pack/keyword_map.json`** | inventory، پیشنهاد کیورد، gaps، cannibalization، اختیاری GSC | کیورد ریسرچ / پیشنهاد primary |
+| **`output/json/*`** | همان داده‌ها به‌صورت فایل‌های جدا (آرشیو/ابزار) | معمولاً لازم نیست اگر ai-pack را داده‌ای |
 | CSV / Markdown | خواندن دستی یا ایمپورت اکسل | گزارش انسانی، ادیت محتوا |
 
 ### فیلدهای مهم داخل موجودیت‌ها
@@ -185,22 +190,21 @@ input/                   ← اختیاری
 3. متن دستورالعمل را از یکی از این فایل‌ها کپی کن:
    - فارسی: [`prompt-fa.md`](prompt-fa.md)
    - English: [`prompt-en.md`](prompt-en.md)
-4. به‌عنوان Knowledge / Files به Gem بده (همه اجباری نیست؛ پرامپت جدول ROUTING دارد):
-   - **حداقل پیشنهادی:** `output/json/ai_context.json`
-   - بهتر: `ai_context.json` + `prompt` (دستورالعمل Gem)
-   - برای کیورد: همان + `keyword_map.json`
-   - کامل‌تر: + `seo_audit.json` / `knowledge.json` فقط وقتی روی URL خاصی عمیق می‌شوی
-5. بعد سؤال بپرس. مدل نباید هر بار همه فایل‌ها را اسکن کند.
+4. به‌عنوان Knowledge / Files به Gem بده:
+   - **پیشنهادی:** هر ۸ فایل داخل `output/ai-pack/` (زیر سقف معمول ۱۰ فایل آپلود)
+   - دستورالعمل Gem را از `prompt-fa.md` / `prompt-en.md` بگذار
+   - اگر فقط overview می‌خواهی: فقط `ai-pack/ai_context.json`
+5. بعد سؤال بپرس. مدل نباید هر بار همه فایل‌ها را اسکن کند؛ پرامپت جدول ROUTING دارد.
 
 ### Search Console CSV (اختیاری)
 
 فایل Queries سرچ‌کنسول را به‌صورت `input/gsc-queries.csv` بگذار (ستون‌های Query / Page / Clicks / Impressions / Position). در `keyword_map.json` با inventory سایت merge می‌شود.
 
-### اگر حجم فایل برای آپلود زیاد است
+### اگر سقف توکن / حجم آپلود کم است
 
-1. فقط `ai_context.json` را بده (برای اکثر سؤالات کافی است).
-2. برای جزئیات یک صفحه، همان entity را از `knowledge` یا Markdown جدا کن.
-3. در صورت نیاز `seo_audit.json` کامل را اضافه کن.
+1. اول فقط `ai-pack/ai_context.json` را بده (برای اکثر سؤالات کافی است).
+2. برای جزئیات یک صفحه، همان entity را از `ai-pack/knowledge.json` جدا کن یا فقط همان فایل را اضافه کن.
+3. در صورت نیاز `ai-pack/seo_audit.json` یا `ai-pack/technical.json` را اضافه کن.
 
 ### نمونه سؤال‌هایی که می‌توانی بپرسی
 
@@ -219,7 +223,7 @@ input/                   ← اختیاری
 
 **هدف:** بعد از هر export، یک مشاور همیشگی داشته باشی که سایت را «می‌شناسد».
 
-**چطور:** `prompt-fa.md` + `ai_context.json` را به Gem بده و سؤال بپرس؛ برای جزئیات URL از `knowledge.json` استفاده کن.
+**چطور:** `prompt-fa.md` + هر ۸ فایل `output/ai-pack/` را به Gem بده و سؤال بپرس؛ برای overview اول `ai_context.json` داخل پک کافی است.
 
 ---
 

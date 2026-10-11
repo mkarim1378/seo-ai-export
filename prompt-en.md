@@ -29,18 +29,21 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 # FILE CATALOG — what each file is for
 
+Users usually upload the **`ai-pack/`** folder (at most 8 files). The same filenames may also come from `output/json/`. If `technical.json` is attached, the standalone technical datasets live as full keys inside that one file — not summaries.
+
 | File | Contains | Open it when… |
 |------|----------|---------------|
 | **`ai_context.json`** | AI starter pack: site_profile summary, counts, impact-ranked findings, `next_actions`, keyword summary, rich url_index | **Read this first** for overview and priorities |
-| **`manifest.json`** | Run summary, counts, audit/link/keyword/site_profile summaries, file index | Tiny overview if ai_context is missing |
-| **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps (+reachable), special pages, SEO plugins, `seo_plugin_globals` | Site-level crawlability |
+| **`manifest.json`** | Pack/run summary, counts, `how_to_use`, file index | Tiny overview if ai_context is missing |
+| **`technical.json`** | Full merge: `site_profile` + `redirect_map` + `hreflang` + `sitemap_coverage` + `media_seo` + `content_duplicates` + `audit_diff` | Any technical / progress / image / duplicate / hreflang question |
+| **`site_profile.json`** | Visibility, permalink, robots.txt, sitemaps (+reachable), special pages, SEO plugins, `seo_plugin_globals` | Crawlability — or `technical.site_profile` |
 | **`keyword_map.json`** | Keyword inventory, url_targets + coverage, cannibalization, gaps, suggestions, optional GSC merge | On-site keyword research / primary suggestions |
-| **`audit_diff.json`** | added/resolved/severity_changed vs previous seo_audit | Before/after progress, monthly reports |
-| **`redirect_map.json`** | Redirect rules + chains/loops | URL migrations, redirect errors |
-| **`hreflang.json`** | Languages + translation pairs (Polylang/WPML) | Multilingual SEO |
-| **`sitemap_coverage.json`** | Sitemap URLs vs export | Index/sitemap gaps |
-| **`media_seo.json`** | Missing alt, oversized files, huge dimensions | Image optimization |
-| **`content_duplicates.json`** | Near-duplicate body fingerprints + duplicate titles | Duplicate content |
+| **`audit_diff.json`** | added/resolved/severity_changed vs previous seo_audit | Before/after — or `technical.audit_diff` |
+| **`redirect_map.json`** | Redirect rules + chains/loops | URL migrations — or `technical.redirect_map` |
+| **`hreflang.json`** | Languages + translation pairs (Polylang/WPML) | Multilingual SEO — or `technical.hreflang` |
+| **`sitemap_coverage.json`** | Sitemap URLs vs export | Index gaps — or `technical.sitemap_coverage` |
+| **`media_seo.json`** | Missing alt, oversized files, huge dimensions | Images — or `technical.media_seo` |
+| **`content_duplicates.json`** | Near-duplicate body fingerprints + duplicate titles | Duplicates — or `technical.content_duplicates` |
 | **`seo_audit.json`** | Full findings with severity + `ai_action` (heuristics, not Google scores) | Complete issue list beyond the ai_context cap |
 | **`knowledge.json`** | Full entities with content/structure/seo (+ `seo.keyword_coverage`) | One URL rewrite, FAQ, reviews |
 | **`site_brain.json`** | Stats, enriched clusters (pillars/keywords), graph, navigation, link_analysis (+ opportunities), entity_index | Strategy, IA, navigation |
@@ -65,14 +68,14 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 |-----------------|------------|---------------------|
 | Priorities, sprint, “where do I start?” | `ai_context.json` (`next_actions` + top_findings) | Else `seo_audit.json` + `manifest.json`; detail → `knowledge.json` |
 | Exec report / KPI / overall status | `ai_context.json` or `manifest.json` | Full `seo_audit` for more examples |
-| Crawlability / robots / sitemap / visibility / global noindex | `ai_context.site_profile_summary` or `site_profile.json` | — |
+| Crawlability / robots / sitemap / visibility / global noindex | `ai_context.site_profile_summary` or `technical.site_profile` / `site_profile.json` | — |
 | Keyword suggestions / inventory / gaps / soft cannibalization | `keyword_map.json` or `ai_context.keyword_intelligence` | Confirm coverage on entity in `knowledge.json` |
-| Before/after progress / what got fixed? | `audit_diff.json` or `ai_context.audit_diff_summary` | — |
-| Redirect chains / loops / redirect rules | `redirect_map.json` | Redirect findings in `seo_audit` |
-| Hreflang / translations / multilingual | `hreflang.json` | — |
-| Sitemap coverage / URLs missing from sitemap | `sitemap_coverage.json` | — |
-| Oversized images / media library alt | `media_seo.json` | — |
-| Duplicate / near-duplicate content | `content_duplicates.json` | `near_duplicate_content` findings in audit |
+| Before/after progress / what got fixed? | `technical.audit_diff` or `audit_diff.json` or `ai_context.audit_diff_summary` | — |
+| Redirect chains / loops / redirect rules | `technical.redirect_map` or `redirect_map.json` | Redirect findings in `seo_audit` |
+| Hreflang / translations / multilingual | `technical.hreflang` or `hreflang.json` | — |
+| Sitemap coverage / URLs missing from sitemap | `technical.sitemap_coverage` or `sitemap_coverage.json` | — |
+| Oversized images / media library alt | `technical.media_seo` or `media_seo.json` | — |
+| Duplicate / near-duplicate content | `technical.content_duplicates` or `content_duplicates.json` | `near_duplicate_content` findings in audit |
 | One product/post/page (content, title, meta, H1, FAQ, coverage) | `knowledge.json` (that entity) | Related finding → `seo_audit.json` |
 | Topic clusters / IA / pillars / content strategy | `site_brain.json` (enriched clusters) | Sample entities in `knowledge.json` |
 | Menus, navigation, user paths | `site_brain.json` (navigation) | Product breadcrumb in `knowledge.json` |

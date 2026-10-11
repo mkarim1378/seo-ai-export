@@ -90,6 +90,8 @@ require_once AI_EXPORTER_ROOT.'/builders/SeoAuditBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/SeoAuditExporter.php';
 require_once AI_EXPORTER_ROOT.'/builders/AiContextBuilder.php';
 require_once AI_EXPORTER_ROOT.'/builders/AiContextExporter.php';
+require_once AI_EXPORTER_ROOT.'/builders/AiPackBuilder.php';
+require_once AI_EXPORTER_ROOT.'/builders/AiPackExporter.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -245,6 +247,28 @@ try {
         );
     }
 
+    $aiPack = [];
+    if (!empty($config['export']['ai_pack'])) {
+        $aiPack = (new AiPackExporter($config))->export(
+            $knowledge,
+            $brain,
+            $audit,
+            $aiContext,
+            $keywordMap,
+            $siteProfile,
+            $redirectMap,
+            $hreflang,
+            $sitemapCoverage,
+            $mediaSeo,
+            $contentDuplicates,
+            $auditDiff
+        );
+        $files['ai_pack'] = 'ai-pack/';
+        foreach ($aiPack['paths'] as $key => $path) {
+            $files['ai_pack_' . $key] = $path;
+        }
+    }
+
     $json->write('manifest.json', [
         'generated_at' => date('Y-m-d H:i:s'),
         'site_name' => get_bloginfo('name'),
@@ -276,8 +300,19 @@ try {
             'next_actions' => count($aiContext['next_actions'] ?? []),
             'url_index' => count($aiContext['url_index'] ?? []),
         ],
+        'ai_pack' => [
+            'enabled' => $aiPack !== [],
+            'file_count' => $aiPack['file_count'] ?? 0,
+            'directory' => 'ai-pack/',
+            'files' => $aiPack['paths'] ?? [],
+        ],
         'files' => $files,
-        'recommended_ai_starter' => 'json/ai_context.json',
+        'recommended_ai_starter' => $aiPack !== []
+            ? 'ai-pack/ai_context.json'
+            : 'json/ai_context.json',
+        'recommended_ai_upload' => $aiPack !== []
+            ? 'ai-pack/ (all 8 JSON files)'
+            : 'json/ai_context.json',
     ]);
 
     $report['counts'] = [
@@ -289,11 +324,58 @@ try {
     ];
     $report['audit'] = $auditSummary;
     $report['link_analysis'] = $linkSummary;
-    $report['files'] = [
+
+    $packReportFiles = [];
+    if ($aiPack !== []) {
+        $packReportFiles = [
+            [
+                'name' => 'ai-pack/manifest.json',
+                'href' => 'output/ai-pack/manifest.json',
+                'description' => 'AI upload pack index (start here for file map)',
+            ],
+            [
+                'name' => 'ai-pack/ai_context.json',
+                'href' => 'output/ai-pack/ai_context.json',
+                'description' => 'Priorities / next_actions — upload with the rest of ai-pack/',
+            ],
+            [
+                'name' => 'ai-pack/knowledge.json',
+                'href' => 'output/ai-pack/knowledge.json',
+                'description' => 'Full entities for AI upload pack',
+            ],
+            [
+                'name' => 'ai-pack/site_brain.json',
+                'href' => 'output/ai-pack/site_brain.json',
+                'description' => 'Clusters, navigation, entity_index',
+            ],
+            [
+                'name' => 'ai-pack/internal_link_graph.json',
+                'href' => 'output/ai-pack/internal_link_graph.json',
+                'description' => 'Orphans, hubs, link opportunities',
+            ],
+            [
+                'name' => 'ai-pack/seo_audit.json',
+                'href' => 'output/ai-pack/seo_audit.json',
+                'description' => 'Full SEO findings',
+            ],
+            [
+                'name' => 'ai-pack/keyword_map.json',
+                'href' => 'output/ai-pack/keyword_map.json',
+                'description' => 'Keyword inventory, gaps, cannibalization',
+            ],
+            [
+                'name' => 'ai-pack/technical.json',
+                'href' => 'output/ai-pack/technical.json',
+                'description' => 'Merged full: site_profile, redirects, hreflang, sitemap, media_seo, duplicates, audit_diff',
+            ],
+        ];
+    }
+
+    $report['files'] = array_merge($packReportFiles, [
         [
             'name' => 'ai_context.json',
             'href' => 'output/json/ai_context.json',
-            'description' => 'Start here for Gemini/ChatGPT — compact AI pack',
+            'description' => 'Compact AI starter (also copied into ai-pack/)',
         ],
         [
             'name' => 'keyword_map.json',
@@ -360,7 +442,7 @@ try {
             'href' => 'output/json/manifest.json',
             'description' => 'Run summary and file index',
         ],
-    ];
+    ]);
 } catch (Throwable $e) {
     $report['error'] = [
         'message' => $e->getMessage(),
