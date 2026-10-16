@@ -515,6 +515,7 @@ try {
             'seo_audit' => 'Full SEO findings',
             'keyword_map' => 'Keyword inventory, gaps, cannibalization',
             'technical' => 'Merged full: site_profile, redirects, hreflang, sitemap, media_seo, duplicates, audit_diff',
+            'knowledge' => 'Full entities in one file (minified monolith)',
             'knowledge_products' => 'Full product entities (minified split)',
             'knowledge_categories' => 'Full category entities (minified split)',
             'knowledge_posts' => 'Full post entities (minified split)',

@@ -31,9 +31,9 @@
 
 # FILE CATALOG — هر فایل چیست؟
 
-کاربر معمولاً پوشهٔ **`ai-pack/`** را آپلود می‌کند (JSONها **فشرده/minified**اند). دانش موجودیت‌ها به‌صورت **`knowledge-{section}.json`** جدا شده (products|categories|posts|pages|media). همان نام‌ها ممکن است از `output/json/` هم بیایند (`knowledge.json` یک‌تکهٔ آرشیو). اگر `technical.json` پیوست شده، داده‌های technical جدا داخل کلیدهای همان فایل‌اند — کامل، نه خلاصه.
+کاربر معمولاً پوشهٔ **`ai-pack/`** را آپلود می‌کند (JSONها **فشرده/minified**اند). دانش موجودیت‌ها هم به‌صورت **`knowledge.json` کامل** و هم به‌صورت **`knowledge-{section}.json`** (products|categories|posts|pages|media) موجود است — داده تکراری است؛ هر دو را با هم آپلود نکن. همان نام‌ها ممکن است از `output/json/` هم بیایند. اگر `technical.json` پیوست شده، داده‌های technical جدا داخل کلیدهای همان فایل‌اند — کامل، نه خلاصه.
 
-**آپلود پیشنهادی:** اول ۷ فایل هسته؛ بعد فقط `knowledge-*` لازم. روی Claude ظرفیت توکن را جدی بگیر؛ `knowledge-media` اغلب سنگین‌ترین است.
+**آپلود پیشنهادی:** اول ۷ فایل هسته؛ بعد یا `knowledge.json` یا فقط `knowledge-*` لازم. روی Claude ظرفیت توکن را جدی بگیر؛ `knowledge-media` اغلب سنگین‌ترین است.
 
 | فایل | محتویات | رجوع کن وقتی… |
 |------|---------|----------------|
@@ -50,7 +50,7 @@
 | **`content_duplicates.json`** | fingerprint محتوای نزدیک‌به‌تکراری + عنوان تکراری | duplicate — یا `technical.content_duplicates` |
 | **`seo_audit.json`** | همه findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست) | لیست کامل مشکلات وقتی از سقف ai_context رد شدی |
 | **`knowledge-products.json`** (و posts/pages/categories/media) | موجودیت‌های کامل همان بخش با content/structure/seo (+ `seo.keyword_coverage`) | جزئیات یک URL، بازنویسی، FAQ، نظرات |
-| **`knowledge.json`** (فقط در `json/`) | همان موجودیت‌ها یک‌جا (آرشیو) | اگر فقط همین پیوست شد؛ در ai-pack به‌جایش knowledge-* است |
+| **`knowledge.json`** | همان موجودیت‌ها یک‌جا (کامل) | وقتی یک فایل واحد می‌خواهی؛ با knowledge-* همزمان نده |
 | **`site_brain.json`** | آمار، clusters غنی (pillar/keywords)، graph، navigation، link_analysis (+ opportunities)، entity_index | استراتژی، IA، ناوبری |
 | **`internal_link_graph.json`** | orphan / hub / unresolved / duplicate anchors / link_opportunities / category nodes | لینک‌سازی داخلی |
 

@@ -29,9 +29,9 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 # FILE CATALOG — what each file is for
 
-Users usually upload the **`ai-pack/`** folder (**minified** JSON). Entity bodies are split into **`knowledge-{section}.json`** (products|categories|posts|pages|media). The same names may also come from `output/json/` (monolithic `knowledge.json` is the archive copy). If `technical.json` is attached, standalone technical datasets live as full keys inside that one file — not summaries.
+Users usually upload the **`ai-pack/`** folder (**minified** JSON). Entity bodies are available both as full **`knowledge.json`** and as **`knowledge-{section}.json`** splits (products|categories|posts|pages|media) — same data; do not upload both together. The same names may also come from `output/json/`. If `technical.json` is attached, standalone technical datasets live as full keys inside that one file — not summaries.
 
-**Suggested upload:** core 7 files first; then only needed `knowledge-*` parts. On Claude, respect token capacity — `knowledge-media` is often heaviest.
+**Suggested upload:** core 7 files first; then either `knowledge.json` or only needed `knowledge-*` parts. On Claude, respect token capacity — `knowledge-media` is often heaviest.
 
 | File | Contains | Open it when… |
 |------|----------|---------------|
@@ -48,7 +48,7 @@ Users usually upload the **`ai-pack/`** folder (**minified** JSON). Entity bodie
 | **`content_duplicates.json`** | Near-duplicate body fingerprints + duplicate titles | Duplicates — or `technical.content_duplicates` |
 | **`seo_audit.json`** | Full findings with severity + `ai_action` (heuristics, not Google scores) | Complete issue list beyond the ai_context cap |
 | **`knowledge-products.json`** (also posts/pages/categories/media) | Full entities for that section with content/structure/seo (+ `seo.keyword_coverage`) | One URL rewrite, FAQ, reviews |
-| **`knowledge.json`** (`json/` only) | All entities in one archive file | If only this is attached; ai-pack uses knowledge-* instead |
+| **`knowledge.json`** | All entities in one full file | When you want a single file; do not also attach all knowledge-* |
 | **`site_brain.json`** | Stats, enriched clusters (pillars/keywords), graph, navigation, link_analysis (+ opportunities), entity_index | Strategy, IA, navigation |
 | **`internal_link_graph.json`** | Orphans / hubs / unresolved / duplicate anchors / link_opportunities / category nodes | Internal linking |
 

@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 class AiPackBuilder
 {
-    /** Core pack files excluding knowledge-* parts. */
+    /** Core pack files excluding knowledge.json and knowledge-* parts. */
     public const CORE_FILE_COUNT = 7;
 
     /** @var list<string> */
@@ -63,7 +63,9 @@ class AiPackBuilder
             'audit_diff' => $auditDiff,
         ];
 
-        $knowledgePaths = [];
+        $knowledgePaths = [
+            'knowledge' => 'ai-pack/knowledge.json',
+        ];
         foreach (self::KNOWLEDGE_SECTIONS as $section) {
             $knowledgePaths['knowledge_' . $section] = 'ai-pack/knowledge-' . $section . '.json';
         }
@@ -85,12 +87,12 @@ class AiPackBuilder
 
         $howToUse = [
             'format' => 'All ai-pack JSON files are minified (compact) to reduce upload size.',
-            'upload_core' => 'Start with the 7 core files (everything except knowledge-*). Enough for strategy, audit, keywords, linking, technical.',
-            'upload_knowledge' => 'Add knowledge-{section}.json only when you need full entity bodies (rewrite, FAQ, per-URL SEO). Prefer one section at a time on Claude Projects.',
-            'upload_gemini' => 'Gemini Gem / ChatGPT usually allow ~10 files: upload core 7 + up to 3 knowledge-* parts (skip media unless needed).',
-            'upload_claude' => 'Claude Projects: core 7 first; add knowledge-products / knowledge-posts / knowledge-pages as capacity allows. media is often the heaviest — upload last or skip.',
+            'upload_core' => 'Start with the 7 core files (everything except knowledge*). Enough for strategy, audit, keywords, linking, technical.',
+            'upload_knowledge' => 'Prefer knowledge-{section}.json for Claude token budgets (one section at a time). knowledge.json is the full monolith (same data) for tools/workflows that want a single file.',
+            'upload_gemini' => 'Gemini Gem / ChatGPT usually allow ~10 files: upload core 7 + up to 3 knowledge-* parts (or core + knowledge.json if it fits). Skip media unless needed.',
+            'upload_claude' => 'Claude Projects: core 7 first; add knowledge-products / knowledge-posts / knowledge-pages as capacity allows. Avoid uploading both knowledge.json and all knowledge-* together (duplicate data).',
             'start' => 'Read ai_context.json first for priorities (next_actions + top_findings).',
-            'entity_detail' => 'Open the matching knowledge-{section}.json for a specific URL (products|posts|pages|categories|media).',
+            'entity_detail' => 'Open knowledge-{section}.json or knowledge.json for a specific URL (products|posts|pages|categories|media).',
             'strategy' => 'Use site_brain.json for clusters, navigation, entity_index.',
             'linking' => 'Use internal_link_graph.json for orphans, hubs, link_opportunities.',
             'audit' => 'Use seo_audit.json when you need findings beyond the ai_context cap.',
@@ -109,9 +111,10 @@ class AiPackBuilder
             'site_name' => function_exists('get_bloginfo') ? get_bloginfo('name') : '',
             'site_url' => function_exists('home_url') ? home_url('/') : '',
             'exporter_version' => $version,
-            'purpose' => 'AI upload pack: minified JSON; knowledge split by entity type for Claude/Gem token and file budgets.',
+            'purpose' => 'AI upload pack: minified JSON; full knowledge.json plus knowledge-* splits by entity type.',
             'file_count' => $fileCount,
             'core_file_count' => self::CORE_FILE_COUNT,
+            'knowledge_full' => 'ai-pack/knowledge.json',
             'knowledge_parts' => count(self::KNOWLEDGE_SECTIONS),
             'max_upload_budget' => 10,
             'json_format' => 'compact',
@@ -139,7 +142,11 @@ class AiPackBuilder
                     'ai-pack/keyword_map.json',
                     'ai-pack/technical.json',
                 ],
-                array_values($knowledgePaths)
+                array_values(array_filter(
+                    $knowledgePaths,
+                    static fn(string $path): bool => !str_ends_with($path, '/knowledge.json')
+                )),
+                ['ai-pack/knowledge.json']
             ),
         ];
 
@@ -147,7 +154,8 @@ class AiPackBuilder
         $packAiContext = $aiContext;
         if ($packAiContext !== []) {
             $packAiContext['files'] = $paths;
-            $packAiContext['files']['knowledge'] = 'ai-pack/knowledge-{products|categories|posts|pages|media}.json';
+            $packAiContext['files']['knowledge'] = 'ai-pack/knowledge.json';
+            $packAiContext['files']['knowledge_parts'] = 'ai-pack/knowledge-{products|categories|posts|pages|media}.json';
             $packAiContext['files']['site_profile'] = 'ai-pack/technical.json#site_profile';
             $packAiContext['files']['redirect_map'] = 'ai-pack/technical.json#redirect_map';
             $packAiContext['files']['hreflang'] = 'ai-pack/technical.json#hreflang';
@@ -156,16 +164,17 @@ class AiPackBuilder
             $packAiContext['files']['content_duplicates'] = 'ai-pack/technical.json#content_duplicates';
             $packAiContext['files']['audit_diff'] = 'ai-pack/technical.json#audit_diff';
             if (isset($packAiContext['how_to_use']['one_url'])) {
-                $packAiContext['how_to_use']['one_url'] = 'Look up url_index, then open that entity in knowledge-{section}.json';
+                $packAiContext['how_to_use']['one_url'] = 'Look up url_index, then open that entity in knowledge-{section}.json or knowledge.json';
             }
         }
 
         $files = [
             'manifest.json' => $manifest,
             'ai_context.json' => $packAiContext !== [] ? $packAiContext : [
-                'purpose' => 'AI starter pack was disabled or empty; use seo_audit.json + knowledge-*.json.',
+                'purpose' => 'AI starter pack was disabled or empty; use seo_audit.json + knowledge.json / knowledge-*.json.',
                 'files' => $paths,
             ],
+            'knowledge.json' => $knowledge,
             'site_brain.json' => $brain,
             'internal_link_graph.json' => $linkGraph,
             'seo_audit.json' => $audit,
@@ -196,6 +205,7 @@ class AiPackBuilder
 
     public static function fileCount(): int
     {
-        return self::CORE_FILE_COUNT + count(self::KNOWLEDGE_SECTIONS);
+        // core + full knowledge.json + per-section splits
+        return self::CORE_FILE_COUNT + 1 + count(self::KNOWLEDGE_SECTIONS);
     }
 }

@@ -36,7 +36,7 @@
 | `content_duplicates.json` | گروه‌های محتوای نزدیک‌به‌تکراری و عنوان تکراری |
 | `seo_audit.json` | لیست مشکلات و فرصت‌های سئو با اولویت و `ai_action` |
 | `ai_context.json` | بسته شروع AI (خلاصه + impact-ranked findings + next_actions + keyword summary) |
-| `output/ai-pack/` | پک آپلود **فشرده (minified)**؛ ۷ فایل هسته + `knowledge-*` جدا به‌ازای نوع موجودیت |
+| `output/ai-pack/` | پک آپلود **فشرده (minified)**؛ ۷ هسته + `knowledge.json` کامل + `knowledge-*` جدا |
 | `site_profile.json` | visibility، permalink، robots/sitemap، `seo_plugin_globals`، صفحات ویژه |
 | `site_brain.json` | بسته هوش سایت (خوشه‌های غنی با pillar، روابط، ناوبری، `entity_index`) |
 | `internal_link_graph.json` | orphan، weak hub، لینک مرده، link_opportunities، category nodes |
@@ -134,6 +134,7 @@ output/
     seo_audit.json
     keyword_map.json
     technical.json       ← ادغام کامل site_profile + redirects + …
+    knowledge.json       ← موجودیت‌های کامل یک‌جا
     knowledge-products.json
     knowledge-categories.json
     knowledge-posts.json
@@ -142,7 +143,7 @@ output/
   json/                  ← خروجی خام کامل (pretty؛ برای ابزار/آرشیو)
     ai_context.json
     keyword_map.json
-    knowledge.json       ← یک‌تکهٔ آرشیو (نه برای آپلود اجباری)
+    knowledge.json
     site_profile.json
     site_brain.json
     internal_link_graph.json
@@ -164,9 +165,10 @@ input/                   ← اختیاری
 
 | فایل | چه می‌گوید | کی به AI بده |
 |------|------------|--------------|
-| **`output/ai-pack/`** | پک آپلود minified؛ ۷ هسته + ۵ تکهٔ knowledge | **مسیر پیشنهادی** — اول هسته، بعد knowledge-* لازم |
+| **`output/ai-pack/`** | پک آپلود minified؛ ۷ هسته + `knowledge.json` + ۵ تکه | **مسیر پیشنهادی** — اول هسته، بعد knowledge-* (یا یک‌جا knowledge.json) |
 | **`ai-pack/manifest.json`** | ایندکس پک، counts، `how_to_use`، نقشه فایل‌ها | overview خیلی سریع / نقشه فایل‌ها |
 | **`ai-pack/ai_context.json`** | بسته شروع: خلاصه سایت، `next_actions`، findings با impact، keyword summary، url_index غنی | اول این را بخوان داخل پک |
+| **`ai-pack/knowledge.json`** | کل موجودیت‌ها یک‌جا (همان دادهٔ کامل، minified) | وقتی یک فایل واحد می‌خواهی؛ با همهٔ knowledge-* همزمان آپلود نکن |
 | **`ai-pack/knowledge-*.json`** | موجودیت‌های کامل به‌تفکیک products/categories/posts/pages/media | جزئیات یک URL / بازنویسی؛ روی Claude تکه‌تکه آپلود کن |
 | **`ai-pack/site_brain.json`** | آمار + خوشه غنی (pillar) + گراف + ناوبری + entity_index | استراتژی و معماری |
 | **`ai-pack/internal_link_graph.json`** | orphan / hub / unresolved / link_opportunities | لینک‌سازی داخلی |
@@ -209,7 +211,7 @@ input/                   ← اختیاری
    - English: [`prompt-en.md`](prompt-en.md)
 4. به‌عنوان Knowledge / Files بده:
    - **هسته (۷ فایل):** `manifest` + `ai_context` + `site_brain` + `seo_audit` + `internal_link_graph` + `keyword_map` + `technical`
-   - **knowledge:** فقط `knowledge-{section}.json` لازم را اضافه کن (روی Claude معمولاً یکی‌یکی؛ `media` اغلب سنگین‌ترین است)
+   - **knowledge:** یا `knowledge.json` کامل، یا فقط `knowledge-{section}.json` لازم (روی Claude معمولاً تکه‌ها؛ هر دو را با هم نده)
    - Gem/ChatGPT (سقف ~۱۰ فایل): هسته ۷ + حداکثر ۳ تکهٔ knowledge
    - دستورالعمل را از `prompt-fa.md` / `prompt-en.md` بگذار
    - اگر فقط overview می‌خواهی: فقط `ai-pack/ai_context.json`
