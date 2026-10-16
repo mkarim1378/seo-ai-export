@@ -10,12 +10,12 @@ require_once AI_EXPORTER_ROOT . '/helpers/ExportProgress.php';
 |--------------------------------------------------------------------------
 | Browser routing
 |--------------------------------------------------------------------------
-| index.php                → صفحه لودینگ فوری (بدون لود وردپرس)
-| index.php?action=run     → (POST) Export در پس‌زمینه + نوشتن progress
-| index.php?action=status  → JSON وضعیت برای poll
-| index.php?action=report  → گزارش HTML آخرین اجرا
-| index.php?sync=1         → رفتار قدیمی: اجرا و نمایش گزارش در همان درخواست
-| CLI همیشه مستقیم اجرا می‌شود.
+| index.php                â†’ ØµÙØ­Ù‡ Ù„ÙˆØ¯ÛŒÙ†Ú¯ ÙÙˆØ±ÛŒ (Ø¨Ø¯ÙˆÙ† Ù„ÙˆØ¯ ÙˆØ±Ø¯Ù¾Ø±Ø³)
+| index.php?action=run     â†’ (POST) Export Ø¯Ø± Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ + Ù†ÙˆØ´ØªÙ† progress
+| index.php?action=status  â†’ JSON ÙˆØ¶Ø¹ÛŒØª Ø¨Ø±Ø§ÛŒ poll
+| index.php?action=report  â†’ Ú¯Ø²Ø§Ø±Ø´ HTML Ø¢Ø®Ø±ÛŒÙ† Ø§Ø¬Ø±Ø§
+| index.php?sync=1         â†’ Ø±ÙØªØ§Ø± Ù‚Ø¯ÛŒÙ…ÛŒ: Ø§Ø¬Ø±Ø§ Ùˆ Ù†Ù…Ø§ÛŒØ´ Ú¯Ø²Ø§Ø±Ø´ Ø¯Ø± Ù‡Ù…Ø§Ù† Ø¯Ø±Ø®ÙˆØ§Ø³Øª
+| CLI Ù‡Ù…ÛŒØ´Ù‡ Ù…Ø³ØªÙ‚ÛŒÙ… Ø§Ø¬Ø±Ø§ Ù…ÛŒâ€ŒØ´ÙˆØ¯.
 */
 
 $progress = null;
@@ -100,7 +100,7 @@ if (PHP_SAPI !== 'cli' && empty($_GET['sync'])) {
             $tracker->fail($message);
         });
 
-        // پاسخ را فوراً ببند تا مرورگر/پراکسی منتظر نماند (و 504 ندهد)؛ کار در پس‌زمینه ادامه دارد.
+        // Ù¾Ø§Ø³Ø® Ø±Ø§ ÙÙˆØ±Ø§Ù‹ Ø¨Ø¨Ù†Ø¯ ØªØ§ Ù…Ø±ÙˆØ±Ú¯Ø±/Ù¾Ø±Ø§Ú©Ø³ÛŒ Ù…Ù†ØªØ¸Ø± Ù†Ù…Ø§Ù†Ø¯ (Ùˆ 504 Ù†Ø¯Ù‡Ø¯)Ø› Ú©Ø§Ø± Ø¯Ø± Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡ Ø§Ø¯Ø§Ù…Ù‡ Ø¯Ø§Ø±Ø¯.
         $body = json_encode(['started' => true, 'run_id' => $runId]);
         http_response_code(202);
         header('Content-Type: application/json; charset=utf-8');
@@ -118,7 +118,7 @@ if (PHP_SAPI !== 'cli' && empty($_GET['sync'])) {
             }
             flush();
         }
-        // هر خروجی بعدی (هشدارهای PHP و ...) نباید به پاسخ بسته‌شده اضافه شود.
+        // Ù‡Ø± Ø®Ø±ÙˆØ¬ÛŒ Ø¨Ø¹Ø¯ÛŒ (Ù‡Ø´Ø¯Ø§Ø±Ù‡Ø§ÛŒ PHP Ùˆ ...) Ù†Ø¨Ø§ÛŒØ¯ Ø¨Ù‡ Ù¾Ø§Ø³Ø® Ø¨Ø³ØªÙ‡â€ŒØ´Ø¯Ù‡ Ø§Ø¶Ø§ÙÙ‡ Ø´ÙˆØ¯.
         ob_start(static fn(): string => '');
     } else {
         require_once AI_EXPORTER_ROOT . '/views/LoadingPage.php';
@@ -491,7 +491,7 @@ try {
             ? 'ai-pack/ai_context.json'
             : 'json/ai_context.json',
         'recommended_ai_upload' => $aiPack !== []
-            ? 'ai-pack/ (minified; core 7 + knowledge knowledge-* parts)'
+            ? 'ai-pack/ (minified; core 7 + knowledge.json and/or knowledge-* parts)'
             : 'json/ai_context.json',
     ]);
 
@@ -509,7 +509,7 @@ try {
     if ($aiPack !== []) {
         $packFileDescriptions = [
             'manifest' => 'AI upload pack index (start here for file map)',
-            'ai_context' => 'Priorities / next_actions — upload with the rest of ai-pack/',
+            'ai_context' => 'Priorities / next_actions â€” upload with the rest of ai-pack/',
             'site_brain' => 'Clusters, navigation, entity_index',
             'internal_link_graph' => 'Orphans, hubs, link opportunities',
             'seo_audit' => 'Full SEO findings',
