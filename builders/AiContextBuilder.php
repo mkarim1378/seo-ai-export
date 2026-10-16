@@ -48,7 +48,7 @@ class AiContextBuilder
                 'sitemap' => 'Use sitemap_coverage for export vs sitemap gaps',
                 'media' => 'Use media_seo for alt/oversized library issues',
                 'duplicates' => 'Use content_duplicates for near-duplicate bodies/titles',
-                'one_url' => 'Look up url_index, then open that entity in knowledge.json',
+                'one_url' => 'Look up url_index, then open that entity in knowledge-{section}.json (or json/knowledge.json)',
                 'internal_linking' => 'Use internal_link_graph.json / site_brain.link_analysis.link_opportunities',
                 'ignore' => 'Ignore Rank Math/Yoast vanity scores if they appear anywhere',
             ],

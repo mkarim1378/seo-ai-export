@@ -491,7 +491,7 @@ try {
             ? 'ai-pack/ai_context.json'
             : 'json/ai_context.json',
         'recommended_ai_upload' => $aiPack !== []
-            ? 'ai-pack/ (all 8 JSON files)'
+            ? 'ai-pack/ (minified; core 7 + knowledge knowledge-* parts)'
             : 'json/ai_context.json',
     ]);
 
@@ -507,48 +507,27 @@ try {
 
     $packReportFiles = [];
     if ($aiPack !== []) {
-        $packReportFiles = [
-            [
-                'name' => 'ai-pack/manifest.json',
-                'href' => 'output/ai-pack/manifest.json',
-                'description' => 'AI upload pack index (start here for file map)',
-            ],
-            [
-                'name' => 'ai-pack/ai_context.json',
-                'href' => 'output/ai-pack/ai_context.json',
-                'description' => 'Priorities / next_actions — upload with the rest of ai-pack/',
-            ],
-            [
-                'name' => 'ai-pack/knowledge.json',
-                'href' => 'output/ai-pack/knowledge.json',
-                'description' => 'Full entities for AI upload pack',
-            ],
-            [
-                'name' => 'ai-pack/site_brain.json',
-                'href' => 'output/ai-pack/site_brain.json',
-                'description' => 'Clusters, navigation, entity_index',
-            ],
-            [
-                'name' => 'ai-pack/internal_link_graph.json',
-                'href' => 'output/ai-pack/internal_link_graph.json',
-                'description' => 'Orphans, hubs, link opportunities',
-            ],
-            [
-                'name' => 'ai-pack/seo_audit.json',
-                'href' => 'output/ai-pack/seo_audit.json',
-                'description' => 'Full SEO findings',
-            ],
-            [
-                'name' => 'ai-pack/keyword_map.json',
-                'href' => 'output/ai-pack/keyword_map.json',
-                'description' => 'Keyword inventory, gaps, cannibalization',
-            ],
-            [
-                'name' => 'ai-pack/technical.json',
-                'href' => 'output/ai-pack/technical.json',
-                'description' => 'Merged full: site_profile, redirects, hreflang, sitemap, media_seo, duplicates, audit_diff',
-            ],
+        $packFileDescriptions = [
+            'manifest' => 'AI upload pack index (start here for file map)',
+            'ai_context' => 'Priorities / next_actions — upload with the rest of ai-pack/',
+            'site_brain' => 'Clusters, navigation, entity_index',
+            'internal_link_graph' => 'Orphans, hubs, link opportunities',
+            'seo_audit' => 'Full SEO findings',
+            'keyword_map' => 'Keyword inventory, gaps, cannibalization',
+            'technical' => 'Merged full: site_profile, redirects, hreflang, sitemap, media_seo, duplicates, audit_diff',
+            'knowledge_products' => 'Full product entities (minified split)',
+            'knowledge_categories' => 'Full category entities (minified split)',
+            'knowledge_posts' => 'Full post entities (minified split)',
+            'knowledge_pages' => 'Full page entities (minified split)',
+            'knowledge_media' => 'Full media entities (minified split; often heaviest)',
         ];
+        foreach ($aiPack['paths'] ?? [] as $key => $path) {
+            $packReportFiles[] = [
+                'name' => $path,
+                'href' => 'output/' . $path,
+                'description' => $packFileDescriptions[$key] ?? 'AI pack file',
+            ];
+        }
     }
 
     $report['files'] = array_merge($packReportFiles, [

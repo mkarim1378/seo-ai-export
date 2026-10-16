@@ -15,30 +15,27 @@ class JsonWriter
 
     /**
      * ذخیره یک فایل JSON
+     *
+     * @param bool $pretty true = خوانا برای آرشیو؛ false = فشرده برای آپلود AI
      */
     public function write(
         string $filename,
-        array $data
+        array $data,
+        bool $pretty = true
     ): void {
 
         $file = $this->outputDirectory . '/' . $filename;
 
         ai_make_directory(dirname($file));
 
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+        if ($pretty) {
+            $flags |= JSON_PRETTY_PRINT;
+        }
+
         file_put_contents(
-
             $file,
-
-            json_encode(
-
-                $data,
-
-                JSON_PRETTY_PRINT
-                | JSON_UNESCAPED_UNICODE
-                | JSON_UNESCAPED_SLASHES
-
-            )
-
+            json_encode($data, $flags)
         );
 
     }

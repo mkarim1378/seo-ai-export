@@ -61,7 +61,7 @@ class SiteBrainBuilder
             ],
             'relationships' => $this->relationshipBuilder->build($knowledge),
             'entity_index' => [
-                'note' => 'Light index only. Full entity bodies are in knowledge.json.',
+                'note' => 'Light index only. Full entity bodies are in knowledge-*.json (ai-pack) or json/knowledge.json.',
                 'products' => $this->indexEntities($knowledge['products'] ?? [], 'product', $inboundMap),
                 'categories' => $this->indexEntities($knowledge['categories'] ?? [], 'category', $inboundMap),
                 'posts' => $this->indexEntities($knowledge['posts'] ?? [], 'post', $inboundMap),

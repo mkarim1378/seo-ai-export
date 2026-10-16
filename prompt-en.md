@@ -29,7 +29,9 @@ The user may attach one or more real **SEO AI Export** files (WordPress / WooCom
 
 # FILE CATALOG — what each file is for
 
-Users usually upload the **`ai-pack/`** folder (at most 8 files). The same filenames may also come from `output/json/`. If `technical.json` is attached, the standalone technical datasets live as full keys inside that one file — not summaries.
+Users usually upload the **`ai-pack/`** folder (**minified** JSON). Entity bodies are split into **`knowledge-{section}.json`** (products|categories|posts|pages|media). The same names may also come from `output/json/` (monolithic `knowledge.json` is the archive copy). If `technical.json` is attached, standalone technical datasets live as full keys inside that one file — not summaries.
+
+**Suggested upload:** core 7 files first; then only needed `knowledge-*` parts. On Claude, respect token capacity — `knowledge-media` is often heaviest.
 
 | File | Contains | Open it when… |
 |------|----------|---------------|
@@ -45,11 +47,12 @@ Users usually upload the **`ai-pack/`** folder (at most 8 files). The same filen
 | **`media_seo.json`** | Missing alt, oversized files, huge dimensions | Images — or `technical.media_seo` |
 | **`content_duplicates.json`** | Near-duplicate body fingerprints + duplicate titles | Duplicates — or `technical.content_duplicates` |
 | **`seo_audit.json`** | Full findings with severity + `ai_action` (heuristics, not Google scores) | Complete issue list beyond the ai_context cap |
-| **`knowledge.json`** | Full entities with content/structure/seo (+ `seo.keyword_coverage`) | One URL rewrite, FAQ, reviews |
+| **`knowledge-products.json`** (also posts/pages/categories/media) | Full entities for that section with content/structure/seo (+ `seo.keyword_coverage`) | One URL rewrite, FAQ, reviews |
+| **`knowledge.json`** (`json/` only) | All entities in one archive file | If only this is attached; ai-pack uses knowledge-* instead |
 | **`site_brain.json`** | Stats, enriched clusters (pillars/keywords), graph, navigation, link_analysis (+ opportunities), entity_index | Strategy, IA, navigation |
 | **`internal_link_graph.json`** | Orphans / hubs / unresolved / duplicate anchors / link_opportunities / category nodes | Internal linking |
 
-### Entity shape (mainly inside `knowledge.json`)
+### Entity shape (mainly inside `knowledge-*.json` / `knowledge.json`)
 
 - Persian-aware text metrics: `word_count` / `sentence_count` / `char_count`, `html_length`
 - `structure`: headings, links, faq_candidates, `images_count` / `images_missing_alt`
@@ -66,23 +69,23 @@ Users usually upload the **`ai-pack/`** folder (at most 8 files). The same filen
 
 | Question / goal | Open first | Then only if needed |
 |-----------------|------------|---------------------|
-| Priorities, sprint, “where do I start?” | `ai_context.json` (`next_actions` + top_findings) | Else `seo_audit.json` + `manifest.json`; detail → `knowledge.json` |
+| Priorities, sprint, “where do I start?” | `ai_context.json` (`next_actions` + top_findings) | Else `seo_audit.json` + `manifest.json`; detail → `knowledge-*.json` |
 | Exec report / KPI / overall status | `ai_context.json` or `manifest.json` | Full `seo_audit` for more examples |
 | Crawlability / robots / sitemap / visibility / global noindex | `ai_context.site_profile_summary` or `technical.site_profile` / `site_profile.json` | — |
-| Keyword suggestions / inventory / gaps / soft cannibalization | `keyword_map.json` or `ai_context.keyword_intelligence` | Confirm coverage on entity in `knowledge.json` |
+| Keyword suggestions / inventory / gaps / soft cannibalization | `keyword_map.json` or `ai_context.keyword_intelligence` | Confirm coverage on entity in `knowledge-*.json` |
 | Before/after progress / what got fixed? | `technical.audit_diff` or `audit_diff.json` or `ai_context.audit_diff_summary` | — |
 | Redirect chains / loops / redirect rules | `technical.redirect_map` or `redirect_map.json` | Redirect findings in `seo_audit` |
 | Hreflang / translations / multilingual | `technical.hreflang` or `hreflang.json` | — |
 | Sitemap coverage / URLs missing from sitemap | `technical.sitemap_coverage` or `sitemap_coverage.json` | — |
 | Oversized images / media library alt | `technical.media_seo` or `media_seo.json` | — |
 | Duplicate / near-duplicate content | `technical.content_duplicates` or `content_duplicates.json` | `near_duplicate_content` findings in audit |
-| One product/post/page (content, title, meta, H1, FAQ, coverage) | `knowledge.json` (that entity) | Related finding → `seo_audit.json` |
-| Topic clusters / IA / pillars / content strategy | `site_brain.json` (enriched clusters) | Sample entities in `knowledge.json` |
-| Menus, navigation, user paths | `site_brain.json` (navigation) | Product breadcrumb in `knowledge.json` |
+| One product/post/page (content, title, meta, H1, FAQ, coverage) | `knowledge-{section}.json` (that entity) or `knowledge.json` | Related finding → `seo_audit.json` |
+| Topic clusters / IA / pillars / content strategy | `site_brain.json` (enriched clusters) | Sample entities in `knowledge-*.json` |
+| Menus, navigation, user paths | `site_brain.json` (navigation) | Product breadcrumb in `knowledge-products.json` |
 | Orphans / weak hubs / dead links / suggested internal links | `internal_link_graph.json` | Else `site_brain.link_analysis` or link findings in `seo_audit.json` |
-| Cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` (+ `keyword_map` for keywords) | Confirm on entity in `knowledge.json` |
-| Brand / GTIN / reviews / images / product schema essentials | `seo_audit.json` (commerce findings) or the entity in `knowledge.json` | — |
-| Only `knowledge.json` attached | That file | State the limit; ask for the other files for precise orphan/sprint/keyword work |
+| Cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` (+ `keyword_map` for keywords) | Confirm on entity in `knowledge-*.json` |
+| Brand / GTIN / reviews / images / product schema essentials | `seo_audit.json` (commerce findings) or the entity in `knowledge-products.json` | — |
+| Only `knowledge-*` / `knowledge.json` attached | That file | State the limit; ask for the other files for precise orphan/sprint/keyword work |
 
 If the right file is not attached, do not invent a vague answer. Say: “I need `[filename]` for this question.”
 

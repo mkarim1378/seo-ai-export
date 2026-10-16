@@ -31,7 +31,9 @@
 
 # FILE CATALOG — هر فایل چیست؟
 
-کاربر معمولاً پوشهٔ **`ai-pack/`** (حداکثر ۸ فایل) را آپلود می‌کند. همان نام فایل‌ها ممکن است از `output/json/` هم بیایند. اگر `technical.json` پیوست شده، داده‌های technical جدا (`site_profile` و …) داخل کلیدهای همان فایل‌اند — کامل، نه خلاصه.
+کاربر معمولاً پوشهٔ **`ai-pack/`** را آپلود می‌کند (JSONها **فشرده/minified**اند). دانش موجودیت‌ها به‌صورت **`knowledge-{section}.json`** جدا شده (products|categories|posts|pages|media). همان نام‌ها ممکن است از `output/json/` هم بیایند (`knowledge.json` یک‌تکهٔ آرشیو). اگر `technical.json` پیوست شده، داده‌های technical جدا داخل کلیدهای همان فایل‌اند — کامل، نه خلاصه.
+
+**آپلود پیشنهادی:** اول ۷ فایل هسته؛ بعد فقط `knowledge-*` لازم. روی Claude ظرفیت توکن را جدی بگیر؛ `knowledge-media` اغلب سنگین‌ترین است.
 
 | فایل | محتویات | رجوع کن وقتی… |
 |------|---------|----------------|
@@ -47,11 +49,12 @@
 | **`media_seo.json`** | alt خالی، oversized، ابعاد بزرگ | تصویر — یا `technical.media_seo` |
 | **`content_duplicates.json`** | fingerprint محتوای نزدیک‌به‌تکراری + عنوان تکراری | duplicate — یا `technical.content_duplicates` |
 | **`seo_audit.json`** | همه findings با severity و `ai_action` (heuristic؛ امتیاز گوگل نیست) | لیست کامل مشکلات وقتی از سقف ai_context رد شدی |
-| **`knowledge.json`** | موجودیت‌های کامل با content/structure/seo (+ `seo.keyword_coverage`) | جزئیات یک URL، بازنویسی، FAQ، نظرات |
+| **`knowledge-products.json`** (و posts/pages/categories/media) | موجودیت‌های کامل همان بخش با content/structure/seo (+ `seo.keyword_coverage`) | جزئیات یک URL، بازنویسی، FAQ، نظرات |
+| **`knowledge.json`** (فقط در `json/`) | همان موجودیت‌ها یک‌جا (آرشیو) | اگر فقط همین پیوست شد؛ در ai-pack به‌جایش knowledge-* است |
 | **`site_brain.json`** | آمار، clusters غنی (pillar/keywords)، graph، navigation، link_analysis (+ opportunities)، entity_index | استراتژی، IA، ناوبری |
 | **`internal_link_graph.json`** | orphan / hub / unresolved / duplicate anchors / link_opportunities / category nodes | لینک‌سازی داخلی |
 
-### مدل داخل موجودیت‌ها (عمدتاً در `knowledge.json`)
+### مدل داخل موجودیت‌ها (عمدتاً در `knowledge-*.json` / `knowledge.json`)
 
 - متریک متن فارسی: `word_count` / `sentence_count` / `char_count`، `html_length`
 - `structure`: headings، links، faq_candidates، `images_count` / `images_missing_alt`
@@ -68,23 +71,23 @@
 
 | نوع سؤال / هدف | اول باز کن | بعداً فقط اگر لازم شد |
 |----------------|------------|------------------------|
-| اولویت کار، Sprint، «از کجا شروع کنم؟» | `ai_context.json` (`next_actions` + top_findings) | اگر نبود: `seo_audit.json` + `manifest.json`؛ جزئیات → `knowledge.json` |
+| اولویت کار، Sprint، «از کجا شروع کنم؟» | `ai_context.json` (`next_actions` + top_findings) | اگر نبود: `seo_audit.json` + `manifest.json`؛ جزئیات → `knowledge-*.json` |
 | گزارش مدیریتی / KPI / وضعیت کلی | `ai_context.json` یا `manifest.json` | `seo_audit` برای مثال‌های بیشتر |
 | crawlability / robots / sitemap / visibility / noindex سراسری | `ai_context.site_profile_summary` یا `technical.site_profile` / `site_profile.json` | — |
-| پیشنهاد کیورد / inventory / gap / cannibalization نرم | `keyword_map.json` یا `ai_context.keyword_intelligence` | تأیید coverage روی entity در `knowledge.json` |
+| پیشنهاد کیورد / inventory / gap / cannibalization نرم | `keyword_map.json` یا `ai_context.keyword_intelligence` | تأیید coverage روی entity در `knowledge-*.json` |
 | پیشرفت قبل/بعد / چه چیزهایی حل شد؟ | `technical.audit_diff` یا `audit_diff.json` یا `ai_context.audit_diff_summary` | — |
 | redirect chain / loop / قوانین ریدایرکت | `technical.redirect_map` یا `redirect_map.json` | findingهای redirect در `seo_audit` |
 | hreflang / ترجمه / چندزبانه | `technical.hreflang` یا `hreflang.json` | — |
 | پوشش sitemap / URL جاافتاده از sitemap | `technical.sitemap_coverage` یا `sitemap_coverage.json` | — |
 | تصویر حجیم / alt کتابخانه رسانه | `technical.media_seo` یا `media_seo.json` | — |
 | محتوای تکراری / near-duplicate | `technical.content_duplicates` یا `content_duplicates.json` | findingهای `near_duplicate_content` در audit |
-| یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ، coverage) | `knowledge.json` (همان entity) | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
-| Topic Cluster / IA / pillar / استراتژی محتوایی | `site_brain.json` (clusters غنی) | نمونه موجودیت‌ها در `knowledge.json` |
-| منو، ناوبری، مسیر کاربر در سایت | `site_brain.json` (navigation) | breadcrumb محصول در `knowledge.json` |
+| یک محصول / پست / صفحه مشخص (محتوا، title، meta، H1، FAQ، coverage) | `knowledge-{section}.json` (همان entity) یا `knowledge.json` | اگر finding مرتبط می‌خواهی → `seo_audit.json` |
+| Topic Cluster / IA / pillar / استراتژی محتوایی | `site_brain.json` (clusters غنی) | نمونه موجودیت‌ها در `knowledge-*.json` |
+| منو، ناوبری، مسیر کاربر در سایت | `site_brain.json` (navigation) | breadcrumb محصول در `knowledge-products.json` |
 | orphan / weak hub / لینک مرده / پیشنهاد لینک داخلی | `internal_link_graph.json` | اگر نبود → `site_brain.link_analysis` یا findingهای لینک در `seo_audit.json` |
-| cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` (+ `keyword_map` برای کیورد) | تأیید روی entity در `knowledge.json` |
-| برند / GTIN / نظرات / تصویر / schema essentials محصول | `seo_audit.json` (findingهای commerce) یا مستقیم entity در `knowledge.json` | — |
-| فقط `knowledge.json` پیوست شده | همان | محدودیت را بگو؛ برای orphan/Sprint/کیورد دقیق بخواه بقیه فایل‌ها را هم بدهد |
+| cannibalization / duplicate title-meta / noindex / thin category | `seo_audit.json` (+ `keyword_map` برای کیورد) | تأیید روی entity در `knowledge-*.json` |
+| برند / GTIN / نظرات / تصویر / schema essentials محصول | `seo_audit.json` (findingهای commerce) یا مستقیم entity در `knowledge-products.json` | — |
+| فقط `knowledge-*` / `knowledge.json` پیوست شده | همان | محدودیت را بگو؛ برای orphan/Sprint/کیورد دقیق بخواه بقیه فایل‌ها را هم بدهد |
 
 اگر فایل مناسب پیوست نشده بود، جواب کلی و بی‌مدرک نساز. بنویس: «برای این سؤال به `[نام فایل]` نیاز دارم.»
 
