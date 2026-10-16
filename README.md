@@ -97,7 +97,19 @@ https://your-site.com/ai-exporter/
 https://your-site.com/ai-exporter/index.php
 ```
 
-بعد از اتمام، یک گزارش HTML ساده با تعداد موجودیت‌ها، خلاصه audit و لینک فایل‌های خروجی نشان داده می‌شود.
+صفحه بلافاصله باز می‌شود و Export در پس‌زمینه سرور شروع می‌شود؛ در همین صفحه می‌بینی:
+
+- نوار پیشرفت کلی + زمان سپری‌شده (درصد در عنوان تب هم هست)
+- مرحله جاری با شمارنده زنده (مثلاً `Products — 312 / 1,240`)
+- چک‌لیست همه مراحل با زمان هر مرحله (مراحل خاموش در `config.php` به‌صورت skipped)
+
+بعد از اتمام، خودکار به گزارش HTML (تعداد موجودیت‌ها، خلاصه audit و لینک فایل‌های خروجی) می‌رود. اگر خطایی رخ دهد یا پروسه PHP وسط کار بمیرد (timeout / memory)، پیام خطا با دکمه «Try again» نمایش داده می‌شود.
+
+نکات:
+
+- بستن تب Export را متوقف نمی‌کند. اگر دوباره صفحه را باز کنی و Export قبلی هنوز در حال اجرا باشد، به همان وصل می‌شود و Export دوم شروع نمی‌شود.
+- آخرین گزارش همیشه در `index.php?action=report` در دسترس است.
+- اجرای قدیمی (بدون صفحه لودینگ، همه‌چیز در یک درخواست): `index.php?sync=1`
 
 ### از CLI (SSH)
 
@@ -313,12 +325,13 @@ ai-exporter/
 ├── assets/report.css      # استایل گزارش مرورگر
 ├── builders/              # knowledge, link graph, site brain, seo audit, keyword map
 ├── exporters/             # products, categories, posts, pages, media
-├── helpers/               # TextMetrics, ContentStructureExtractor
+├── helpers/               # TextMetrics, ContentStructureExtractor, ExportProgress
 ├── repositories/          # mapperها + SeoMetaExtractor
-├── views/ExportReport.php
+├── views/                 # ExportReport (گزارش) + LoadingPage (صفحه پیشرفت)
 ├── writers/               # JSON / CSV / Markdown
 ├── input/                 # اختیاری: gsc-queries.csv
 └── output/                # بعد از اجرا ساخته می‌شود (آپلود لازم نیست)
+    └── .run/              # وضعیت اجرای مرورگر: progress.json، run.lock، report.html
 ```
 
 ---
@@ -357,6 +370,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 | متای سئو خالی است | Yoast یا Rank Math نصب/فعال باشد؛ وگرنه فیلدهای پایه خالی‌تر می‌مانند. |
 | حافظه کم / تایم‌اوت | از CLI اجرا کن؛ یا موقتاً بخشی از export را در `config.php` خاموش کن. |
 | گزارش HTML نمی‌آید | فقط در اجرای مرورگر HTML است؛ CLI متنی است. |
+| صفحه پیشرفت روی «Connecting…» می‌ماند | دسترسی نوشتن PHP روی `output/` را چک کن؛ کش سرور/CDN نباید `index.php?action=status` را کش کند. |
+| «The export process stopped unexpectedly» | پروسه PHP وسط کار کشته شده (timeout سرور یا memory)؛ از CLI اجرا کن یا بخشی از export را خاموش کن. |
 | فایل برای Gem خیلی بزرگ است | اول audit + manifest؛ بعد تکه‌تکه knowledge. |
 
 ---

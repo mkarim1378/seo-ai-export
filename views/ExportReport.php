@@ -15,6 +15,11 @@ class ExportReport
         echo $this->renderHtml($report);
     }
 
+    public function html(array $report): string
+    {
+        return $this->renderHtml($report);
+    }
+
     private function renderCli(array $report): void
     {
         if (!empty($report['error'])) {
@@ -154,6 +159,7 @@ HTML;
         <span class="dot">·</span>
         {$duration}s
       </p>
+      <p class="hero-actions"><a href="index.php">Run export again</a></p>
     </header>
     {$body}
     <footer class="foot">

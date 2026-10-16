@@ -48,9 +48,13 @@ class ProductRepository
 
         ]);
 
+        $total = (int)$query->post_count;
+        $done = 0;
+
         while ($query->have_posts()) {
 
             $query->the_post();
+            ExportProgress::tick(++$done, $total);
 
             $product = wc_get_product(get_the_ID());
 

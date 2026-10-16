@@ -44,9 +44,13 @@ class PostRepository
 
         ]);
 
+        $total = (int)$query->post_count;
+        $done = 0;
+
         while ($query->have_posts()) {
 
             $query->the_post();
+            ExportProgress::tick(++$done, $total);
 
             $post = get_post(get_the_ID());
 

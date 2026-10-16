@@ -297,3 +297,241 @@ a:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Loading page */
+
+.loader .hero h1 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--focus);
+  animation: spin 0.9s linear infinite;
+}
+
+.loader[data-state="done"] .spinner,
+.loader[data-state="failed"] .spinner {
+  display: none;
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.progress-meta {
+  flex: none;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.86rem;
+}
+
+.progress {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-accent);
+  overflow: hidden;
+}
+
+.progress-fill {
+  position: relative;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--focus);
+  transition: width 0.6s ease;
+  overflow: hidden;
+}
+
+.progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.loader[data-state="starting"] .progress-fill {
+  width: 30%;
+  animation: indeterminate 1.4s ease-in-out infinite;
+}
+
+.loader[data-state="done"] .progress-fill {
+  background: var(--opportunity);
+}
+
+.loader[data-state="failed"] .progress-fill {
+  background: var(--critical);
+}
+
+.loader[data-state="done"] .progress-fill::after,
+.loader[data-state="failed"] .progress-fill::after {
+  display: none;
+}
+
+.progress-sub {
+  min-height: 1.5em;
+}
+
+.progress-sub.warn {
+  color: var(--warning);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 4px;
+  border-bottom: 1px dashed var(--line);
+  font-size: 0.92rem;
+}
+
+.step:last-child {
+  border-bottom: 0;
+}
+
+.step-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  justify-self: center;
+}
+
+.step-detail {
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.step[data-state="pending"] .step-label {
+  color: var(--muted);
+}
+
+.step[data-state="running"] {
+  font-weight: 500;
+}
+
+.step[data-state="running"] .step-icon {
+  border-color: var(--line);
+  border-top-color: var(--focus);
+  animation: spin 0.9s linear infinite;
+}
+
+.step[data-state="done"] .step-icon {
+  border-color: var(--opportunity);
+  background: var(--opportunity);
+  box-shadow: inset 0 0 0 3px var(--panel);
+}
+
+.step[data-state="skipped"] {
+  opacity: 0.55;
+}
+
+.step[data-state="skipped"] .step-icon {
+  border-style: dashed;
+}
+
+.step[data-state="failed"] .step-icon {
+  border-color: var(--critical);
+  background: var(--critical);
+  box-shadow: inset 0 0 0 3px var(--panel);
+}
+
+.step[data-state="failed"] .step-label {
+  color: var(--critical);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--focus);
+  background: var(--focus);
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:hover {
+  text-decoration: none;
+  filter: brightness(1.08);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--focus);
+}
+
+.hero-actions {
+  margin: 14px 0 0;
+  font-size: 0.9rem;
+}
+
+code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.85em;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(340%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .step[data-state="running"] .step-icon,
+  .progress-fill,
+  .progress-fill::after {
+    animation: none !important;
+    transition: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .progress-head {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
